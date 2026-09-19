@@ -18,6 +18,8 @@ export interface SystemNotice {
 }
 
 /** 浏览器系统通知：录音时显示进行中的状态，结束后收起（对应 Android 的流体云卡片）。 */
+import { isNativeShell, nativeLiveUpdate, nativeStopLiveUpdate } from '../lib/native';
+
 export function useSystemNotice(): SystemNotice {
   const supported = typeof Notification !== 'undefined';
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(
@@ -43,6 +45,8 @@ export function useSystemNotice(): SystemNotice {
 
   const show = useCallback(
     (title: string, body: string) => {
+      // APK（WebView 宿主）里走原生流体云通知；浏览器里退回 Notification API
+      if (isNativeShell() && nativeLiveUpdate(title, body)) return;
       if (!supported || Notification.permission !== 'granted') return;
       try {
         if (notice.current) {
@@ -64,6 +68,7 @@ export function useSystemNotice(): SystemNotice {
   );
 
   const close = useCallback(() => {
+    if (isNativeShell() && nativeStopLiveUpdate()) return;
     try {
       notice.current?.close();
     } catch {

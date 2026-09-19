@@ -1,85 +1,110 @@
-﻿package com.app.m3expressive
+package com.app.m3expressive
 
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
-import android.speech.RecognizerIntent
+import android.webkit.JavascriptInterface
+import android.webkit.PermissionRequest
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.addCallback
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.TextFields
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import com.app.m3expressive.ui.theme.M3ExpressiveTheme
+import androidx.core.content.ContextCompat
+import androidx.webkit.WebViewAssetLoader
 
-private data class HistoryRecord(val title: String, val detail: String)
-private enum class AppTab { HOME, HISTORY, SCHEDULE, SETTINGS }
-
+/**
+ * 多分课表 · Android 宿主
+ *
+ * 这里**没有任何自有界面**：APK 加载的是与网站完全相同的 Web 构建
+ * （构建时由 syncWebAssets 把 dist/ 同步到 assets/www），因此 APK 与网页永远一致。
+ * 原生侧只做三件 Web 自己做不到的事：
+ *   1. 运行时权限（相机 / 麦克风 / 通知）
+ *   2. 用系统内置文件资源浏览器（SAF）响应网页的 <input type=file>
+ *   3. 通过 JS 桥发布 Android 16 / ColorOS 流体云进度通知
+ */
 class MainActivity : ComponentActivity() {
 
-    /** 当前标签页提升到 Activity 层，便于系统返回手势（可预测式返回）读取 */
-    private val currentTab = mutableStateOf(AppTab.HOME)
+    private lateinit var webView: WebView
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
 
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { granted ->
+        val payload = granted.entries.joinToString(",") { "${it.key}=${it.value}" }
+        webView.evaluateJavascript(
+            "window.__duofenPermissionResult__ && window.__duofenPermissionResult__('$payload')",
+            null,
+        )
+    }
+
+    private val fileChooserLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val data = result.data?.data
+        fileChooserCallback?.onReceiveValue(if (data != null) arrayOf(data) else null)
+        fileChooserCallback = null
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Android 16 Live Updates / ColorOS 流体云 渠道
         LiveUpdates.ensureChannel(this)
 
-        // 可预测式返回：非首页时先回到首页，首页再按一次才退出应用
+        // 站点资源经 https://appassets.androidplatform.net/assets/www/ 提供：
+        // 与网站同源行为，IndexedDB / fetch / getUserMedia 都可用（file:// 会被限制）
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+
+        webView = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.databaseEnabled = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            settings.cacheMode = WebSettings.LOAD_DEFAULT
+            settings.allowFileAccess = false
+            settings.allowContentAccess = true
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            webChromeClient = chromeClient()
+            webViewClient = object : WebViewClient() {
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+                    assetLoader.shouldInterceptRequest(request.url)
+
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    val url = request.url
+                    return if (url.host == "appassets.androidplatform.net") {
+                        false
+                    } else {
+                        // 外部链接（地图 App、GitHub、Bilibili）交给系统
+                        runCatching { startActivity(Intent(Intent.ACTION_VIEW, url)) }
+                        true
+                    }
+                }
+            }
+            addJavascriptInterface(NativeBridge(), "DuofenNative")
+            loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
+        }
+
+        setContentView(webView)
+
+        // 可预测式返回：先走网页自己的历史栈，退无可退再退出应用
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    if (currentTab.value != AppTab.HOME) {
-                        currentTab.value = AppTab.HOME
+                    if (webView.canGoBack()) {
+                        webView.goBack()
                     } else {
                         isEnabled = false
                         onBackPressedDispatcher.onBackPressed()
@@ -88,247 +113,82 @@ class MainActivity : ComponentActivity() {
                 }
             },
         )
-
-        setContent { M3ExpressiveTheme { M3ExpressiveApp(currentTab) } }
-    }
-}
-
-@Composable
-private fun M3ExpressiveApp(navTab: MutableState<AppTab>) {
-    val context = LocalContext.current
-    val tab by navTab
-    val setTab: (AppTab) -> Unit = { navTab.value = it }
-    var status by remember { mutableStateOf("准备就绪") }
-    var sttApi by remember { mutableStateOf("") }
-    var i2tApi by remember { mutableStateOf("") }
-    // 快速开始：点击语音后显示进度条并发布实时通知（ColorOS 流体云）
-    var listening by remember { mutableStateOf(false) }
-    var recordSeconds by remember { mutableStateOf(0) }
-    val history = remember { mutableStateListOf<HistoryRecord>() }
-
-    androidx.compose.runtime.LaunchedEffect(listening) {
-        recordSeconds = 0
-        while (listening) {
-            kotlinx.coroutines.delay(1000)
-            recordSeconds += 1
-            LiveUpdates.update(
-                context,
-                "正在录音 · 多分课表",
-                "%02d:%02d · 实时语音转文字进行中".format(recordSeconds / 60, recordSeconds % 60),
-            )
-        }
     }
 
-    // Android 13+ 通知权限：Live Updates / 流体云 需要它
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> if (!granted) status = "未授予通知权限，流体云状态不可见" }
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
-    val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        listening = false
-        val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (!text.isNullOrBlank()) {
-            history.add(0, HistoryRecord("语音转文字", text))
-            status = "已完成语音识别"
-            LiveUpdates.finish(context, "语音识别完成", text.take(80))
-        } else {
-            status = "没有识别到内容"
-            LiveUpdates.clear(context)
-        }
-    }
-    val microphonePermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            listening = true
-            LiveUpdates.update(context, "正在录音 · 多分课表", "00:00 · 实时语音转文字进行中")
-            startSpeechRecognition(context, speechLauncher::launch) {
-                listening = false
-                status = it
-                LiveUpdates.clear(context)
-            }
-        } else {
-            status = "需要麦克风权限才能使用语音识别"
-        }
-    }
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) {
-            history.add(0, HistoryRecord("图片转文字", "已拍摄图片，等待图像文字识别"))
-            status = "图片已捕获"
-            LiveUpdates.finish(context, "图片已捕获", "等待图像文字识别")
-        } else {
-            status = "未获取到图片"
-            LiveUpdates.clear(context)
-        }
-    }
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) cameraLauncher.launch(null) else status = "需要相机权限才能拍照"
-    }
-
-    Scaffold(bottomBar = {
-        NavigationBar {
-            NavigationBarItem(tab == AppTab.HOME, { setTab(AppTab.HOME) }, icon = { Icon(Icons.Outlined.Home, null) }, label = { Text("首页") })
-            NavigationBarItem(tab == AppTab.HISTORY, { setTab(AppTab.HISTORY) }, icon = { Icon(Icons.Outlined.History, null) }, label = { Text("历史") })
-            NavigationBarItem(
-                tab == AppTab.SCHEDULE,
-                { setTab(AppTab.SCHEDULE) },
-                icon = { Icon(Icons.Outlined.CalendarMonth, null) },
-                label = { Text("课表") },
-            )
-            NavigationBarItem(tab == AppTab.SETTINGS, { setTab(AppTab.SETTINGS) }, icon = { Icon(Icons.Outlined.Settings, null) }, label = { Text("设置") })
-        }
-    }) { padding ->
-        Surface(Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
-            when (tab) {
-                AppTab.HOME -> HomeScreen(status, listening, recordSeconds, {
-                    if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                        listening = true
-                        LiveUpdates.update(context, "正在录音 · 多分课表", "00:00 · 实时语音转文字进行中")
-                        startSpeechRecognition(context, speechLauncher::launch) {
-                            listening = false
-                            status = it
-                            LiveUpdates.clear(context)
-                        }
-                    } else {
-                        microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                    }
-                }, {
-                    if (context.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                        LiveUpdates.update(context, "拍照记录", "正在打开相机…")
-                        cameraLauncher.launch(null)
-                    } else {
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    }
-                }) { setTab(AppTab.SETTINGS) }
-                AppTab.HISTORY -> HistoryScreen(history)
-                AppTab.SCHEDULE -> ScheduleScreen()
-                AppTab.SETTINGS -> SettingsScreen(sttApi, i2tApi, { sttApi = it }, { i2tApi = it }, { status = "API 配置已保存" }) {
-                    context.startActivity(Intent(Settings.ACTION_SETTINGS))
+    private fun chromeClient() = object : WebChromeClient() {
+        /** 网页请求相机 / 麦克风：应用已授权就直接放行，否则先申请运行时权限 */
+        override fun onPermissionRequest(request: PermissionRequest) {
+            val missing = request.resources.mapNotNull { resource ->
+                when (resource) {
+                    PermissionRequest.RESOURCE_AUDIO_CAPTURE -> Manifest.permission.RECORD_AUDIO
+                    PermissionRequest.RESOURCE_VIDEO_CAPTURE -> Manifest.permission.CAMERA
+                    else -> null
                 }
+            }.filter { ContextCompat.checkSelfPermission(this@MainActivity, it) != PackageManager.PERMISSION_GRANTED }
+
+            if (missing.isEmpty()) {
+                request.grant(request.resources)
+            } else {
+                permissionLauncher.launch(missing.toTypedArray())
+                request.deny() // 授权后网页会重新发起 getUserMedia
             }
         }
-    }
-}
 
-private fun startSpeechRecognition(
-    context: android.content.Context,
-    launch: (Intent) -> Unit,
-    onUnavailable: (String) -> Unit
-) {
-    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        putExtra(RecognizerIntent.EXTRA_PROMPT, "请开始说话")
+        /** 网页的 <input type=file> → 系统内置文件资源浏览器 */
+        override fun onShowFileChooser(
+            view: WebView,
+            callback: ValueCallback<Array<Uri>>,
+            params: FileChooserParams,
+        ): Boolean {
+            fileChooserCallback?.onReceiveValue(null)
+            fileChooserCallback = callback
+            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                // 课表可能是 .doc/.rtf/.html/.csv 或图片：不限制类型，交给系统选择器
+                type = "*/*"
+            }
+            return runCatching {
+                fileChooserLauncher.launch(intent)
+                true
+            }.getOrDefault(false)
+        }
     }
-    if (intent.resolveActivity(context.packageManager) != null) {
-        launch(intent)
-    } else {
-        onUnavailable("当前设备没有可用的语音识别服务")
-    }
-}
 
-@Composable
-private fun HomeScreen(
-    status: String,
-    listening: Boolean,
-    recordSeconds: Int,
-    onSpeech: () -> Unit,
-    onCamera: () -> Unit,
-    onSettings: () -> Unit,
-) {
-    // 自适应：内容可滚动，小屏或大字体下不会被裁掉
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("多分课表", style = MaterialTheme.typography.headlineMedium)
-        Text("课表 · 语音 · 图片记录", style = MaterialTheme.typography.titleMedium)
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("快速开始", style = MaterialTheme.typography.titleLarge)
-                Text("使用语音或相机创建一条新的记录。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = onSpeech, enabled = !listening, modifier = Modifier.weight(1f)) { Icon(Icons.Outlined.Mic, null); Spacer(Modifier.size(8.dp)); Text("语音") }
-                    Button(onClick = onCamera, modifier = Modifier.weight(1f)) { Icon(Icons.Outlined.CameraAlt, null); Spacer(Modifier.size(8.dp)); Text("拍照") }
+    /** 给网页用的原生桥：流体云进度通知 + 平台标识 */
+    private inner class NativeBridge {
+        @JavascriptInterface
+        fun liveUpdate(title: String, text: String) {
+            runOnUiThread { LiveUpdates.update(this@MainActivity, title, text) }
+        }
+
+        @JavascriptInterface
+        fun stopLiveUpdate() {
+            runOnUiThread { LiveUpdates.clear(this@MainActivity) }
+        }
+
+        @JavascriptInterface
+        fun requestPermissions() {
+            runOnUiThread {
+                val wanted = mutableListOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    wanted += Manifest.permission.POST_NOTIFICATIONS
                 }
-
-                // 点击语音后的进度条 + 计时，同时发布 Live Updates（ColorOS 流体云）
-                if (listening) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("正在录音 · 实时语音转文字", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-                            Text(
-                                "%02d:%02d".format(recordSeconds / 60, recordSeconds % 60),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        }
-                        LinearProgressIndicator(Modifier.fillMaxWidth())
-                        Text(
-                            "状态卡片已发送到通知 / 流体云",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                permissionLauncher.launch(
+                    wanted.filter {
+                        ContextCompat.checkSelfPermission(this@MainActivity, it) != PackageManager.PERMISSION_GRANTED
+                    }.toTypedArray(),
+                )
             }
         }
-        Card(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.TextFields, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.primary)
-                Column(Modifier.padding(start = 12.dp).weight(1f)) {
-                    Text("当前状态", style = MaterialTheme.typography.labelLarge)
-                    Text(status)
-                }
-                IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, "设置") }
-            }
-        }
-    }
-}
 
-@Composable
-private fun HistoryScreen(history: List<HistoryRecord>) {
-    if (history.isEmpty()) {
-        Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(Icons.Outlined.History, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(12.dp))
-            Text("还没有记录", style = MaterialTheme.typography.titleLarge)
-            Text("完成一次语音识别或拍照后，结果会显示在这里。", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    } else {
-        LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            item { Text("历史记录", style = MaterialTheme.typography.headlineSmall) }
-            items(history) { record ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(record.title, style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(6.dp))
-                        Text(record.detail, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
+        @JavascriptInterface
+        fun platform(): String = "android"
     }
-}
 
-@Composable
-private fun SettingsScreen(sttApi: String, i2tApi: String, onSttChange: (String) -> Unit, onI2tChange: (String) -> Unit, onSave: () -> Unit, onSystemSettings: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("API 设置", style = MaterialTheme.typography.headlineSmall)
-        Text("配置后续联网识别服务的接口地址。", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(sttApi, onSttChange, Modifier.fillMaxWidth(), label = { Text("语音转文字 API") }, singleLine = true)
-        OutlinedTextField(i2tApi, onI2tChange, Modifier.fillMaxWidth(), label = { Text("图片转文字 API") }, singleLine = true)
-        Button(onClick = onSave, Modifier.fillMaxWidth()) { Text("保存配置") }
-        Button(onClick = onSystemSettings, Modifier.fillMaxWidth()) { Text("打开系统设置") }
+    override fun onDestroy() {
+        fileChooserCallback?.onReceiveValue(null)
+        fileChooserCallback = null
+        webView.destroy()
+        super.onDestroy()
     }
 }
