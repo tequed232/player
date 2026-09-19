@@ -1,6 +1,8 @@
 package com.app.m3expressive
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
 import android.speech.RecognizerIntent
@@ -75,11 +77,25 @@ private fun M3ExpressiveApp() {
             status = "已完成语音识别"
         } else status = "没有识别到内容"
     }
+    val microphonePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            startSpeechRecognition(context, speechLauncher::launch) { status = it }
+        } else {
+            status = "需要麦克风权限才能使用语音识别"
+        }
+    }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         if (bitmap != null) {
             history.add(0, HistoryRecord("图片转文字", "已拍摄图片，等待图像文字识别"))
             status = "图片已捕获"
         } else status = "未获取到图片"
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) cameraLauncher.launch(null) else status = "需要相机权限才能拍照"
     }
 
     Scaffold(bottomBar = {
@@ -92,18 +108,40 @@ private fun M3ExpressiveApp() {
         Surface(Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
             when (tab) {
                 AppTab.HOME -> HomeScreen(status, {
-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        putExtra(RecognizerIntent.EXTRA_PROMPT, "请开始说话")
+                    if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        startSpeechRecognition(context, speechLauncher::launch) { status = it }
+                    } else {
+                        microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
-                    speechLauncher.launch(intent)
-                }, { cameraLauncher.launch(null) }) { tab = AppTab.SETTINGS }
+                }, {
+                    if (context.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        cameraLauncher.launch(null)
+                    } else {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                }) { tab = AppTab.SETTINGS }
                 AppTab.HISTORY -> HistoryScreen(history)
                 AppTab.SETTINGS -> SettingsScreen(sttApi, i2tApi, { sttApi = it }, { i2tApi = it }, { status = "API 配置已保存" }) {
                     context.startActivity(Intent(Settings.ACTION_SETTINGS))
                 }
             }
         }
+    }
+}
+
+private fun startSpeechRecognition(
+    context: android.content.Context,
+    launch: (Intent) -> Unit,
+    onUnavailable: (String) -> Unit
+) {
+    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_PROMPT, "请开始说话")
+    }
+    if (intent.resolveActivity(context.packageManager) != null) {
+        launch(intent)
+    } else {
+        onUnavailable("当前设备没有可用的语音识别服务")
     }
 }
 
