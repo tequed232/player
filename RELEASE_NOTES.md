@@ -1,58 +1,29 @@
-﻿# v1.0.3 — 内嵌课表屏幕 + Android 16 / ColorOS 流体云 构建
+﻿# 多分课表 v1.0.4
 
-本次新增 **课表**（多分课表）屏幕：把学校教务系统导出的 `学生课表.doc` 解析后**内嵌进应用**，
-并在 Web 与 Android 两端都提供独立的课表屏幕；Android 端同时升级到 **Android 16 (API 36)**，
-接入 **Android 16 Live Updates / ColorOS 流体云** 实况通知。
+Material 3 Expressive 课表与多模态记录（Web + Android）。
 
-## 在线体验 / 下载
+## 新内容
 
-- **Web 应用（GitHub Pages）**：https://tequed232.github.io/duofen-kebiao/
-- **Android APK**：本 Release 附件 `m3-expressive-android-1.0.3.apk`（arm64-v8a，适配天玑 9400 / ColorOS 16）
+- **课表即主页**：底边栏顺序改为 课表 / 记录 / 历史 / 设置，启动直接进课表；点「课表」回到栈底。
+- **筛选合并**：老师 / 课程 / 地点 / 时间 的标签与搜索框合成一个按钮，点开在同一面板里设置（四个条件取交集），支持一键清空。
+- **输入实时判意**：输入框边打字边判断——陈述句按「输入 · 回车追加到转写」，疑问句自动切「提问 · 回车发送」，图形与动作同步变化。
+- **教材识别**：课程详情新增「教材」，内置由 12 张教材封面整理的书目；可拍照/选图识别封面文字并自动匹配课程，也可手动填写、随时修改或移除。
+- **液态玻璃底边栏**：模糊 + SVG 折射，可在设置里开关（参考 rdev/liquid-glass-react，当前使用等价自绘实现）。
+- **滑块阻尼与卡扣**：0/25/50/75/100 五个卡扣带阻尼吸附，点旁边的数字可直接输入精确值。
+- **美术资源**：广东财贸职业学院 · 官方教材呈现，开屏主视觉、记录页「拍照 / 导入图片」中间、关于页均可点击（戳一下喵一下 🐱），并保留 Bilibili 致谢。
+- **关于页**：应用信息、Material 3 设计说明（动态配色、MotionScheme.expressive 弹簧、组件与形状、字体图标子集、数据与隐私）、致谢与开源链接集中于此。
+- **开屏动画**：品牌视觉 + M3 加载指示器，退场时主页组件从下向上依次弹出；页面切换统一为浮动过渡。
+- **地图导航**：地址拼上学校名并把 `16-203` 转成「16栋203号」，优先唤起高德/百度/腾讯/Google/Apple 地图 App。
+- **Anubis 反爬防火墙**：`deploy/anubis/` 提供 docker-compose + Caddy + 策略文件，`anubis-watch` 工作流每天监控上游版本并探活。
 
-## 本次新增
+## Android（本包）
 
-### 课表屏幕（Web + Android）
-
-- **自主嵌入**：`scripts/import-schedule.mjs` 解析 `学生课表.doc`（RTF 表格），生成
-  `web/src/data/schedule.ts` 与 `app/.../ScheduleData.kt`，应用启动即自带课表（广东财贸信创3班版权所有 · 2026-2027-1 ·
-  7 节次 × 7 天 · 24 门课），无需每次手动导入。
-- **四日表格**：左侧是按 **上午 / 中午 / 下午 / 晚上** 分段的时间轴，上方**并排展示四天**；
-  在表格上**左右拖动跟手切换日期窗口**（松手回弹），点击某一天选中该日，下方列出当天全部课程。
-- **课程详情**：默认只显示课程名，点击课程弹出详情（授课老师、节次与时间、周次、地点）。
-- **周次**：按学期开始日期计算当前教学周（可调），表格只显示该周实际开设的课程；◀ ▶ 切换周次。
-- **导航**：点击课程地点 → 启动地图应用检索该地址；未设置默认地图时先弹出地图选择列表，
-  可「记住选择」写入设置（Web 端在设置页有「默认跳转地图」项）。
-- **筛选**：顶部搜索图标进入「筛选」屏幕，按 老师 / 课程 / 地点 / 时间 四个标签检索，
-  结果按 课程 · 老师 · 地点 三列排列；点击条目回到课表并**高亮该课程 5 秒**（若该课程不在当前周，
-  自动跳到它开课的那一周并提示）。
-- **导入 / 替换**：课表页右上角「课表数据」面板支持导入 `.doc/.rtf`（教务系统导出）、`.html`（表格另存为）、
-  `.csv/.txt`（粘贴文本），或一键恢复内置课表；导入结果保存在浏览器 IndexedDB。
-
-### Android 16 / 天玑 9400 / ColorOS 流体云
-
-- `compileSdk = 36`、`targetSdk = 36`（Android 16），`abiFilters = arm64-v8a`（天玑 9400 / MT6991）。
-- **流体云（实况通知）**：语音识别与拍照处理时发布 Android 16 **Live Updates**
-  （`Notification.ProgressStyle` + `setRequestPromotedOngoing(true)`），ColorOS 16 会将其展示为
-  **流体云**卡片；完成时显示 100% 结果并在数秒后自动收起。
-  该 API 仅存在于 Android 16，代码通过反射调用，同一 APK 在旧系统上自动退化为普通进行中通知。
-- 新增 `POST_NOTIFICATIONS` 权限（Android 13+ 运行时申请）、`enableOnBackInvokedCallback`
-  （Android 16 预测式返回）、`windowSoftInputMode=adjustResize`。
-- Android 端导航栏新增 **课表** 标签页，与 Web 端共用同一份课表数据。
-
-## 构建方式
-
-```bash
-# Web：解析课表 -> 生成图标子集 -> 校验 -> vite build
-node scripts/import-schedule.mjs "学生课表.doc"     # 生成 web/src/data/schedule.ts + ScheduleData.kt
-npm install && npm run build                        # 输出 dist/
-
-# Android：输出 app/build/outputs/apk/release/app-release.apk（versionCode 4 / versionName 1.0.3）
-./gradlew assembleRelease
-```
+- 应用名 **多分课表**，图标为猫娘美术资源（自适应图标 + 各密度 PNG）。
+- 课表标签页支持 **系统文件管理器（SAF）导入** .doc/.rtf/.html/.csv，并可恢复内置课表。
+- 录音进度条 + 系统通知；Android 16 / ColorOS 流体云（Live Updates）渠道与 `ProgressStyle` 提升。
+- 适配**可预测式返回**：非首页先回首页，首页再按一次才退出。
+- 目标 Android 16（targetSdk 35，minSdk 26，arm64-v8a）。
 
 ## 验证
 
-- Web：`npm run verify`（Playwright + Chromium，412×892、虚拟摄像头）共 **57 步**全部通过，
-  0 console 错误、0 page error，截图见 `screenshots/`（含课表、筛选、高亮、导入面板）。
-- Android：`./gradlew assembleRelease` 构建通过，APK 清单核对 `targetSdkVersion=36`、
-  `native-code: arm64-v8a`、`POST_NOTIFICATIONS` 权限。
+本地与线上各跑一遍：91 步全部通过，0 console 错误、0 page error。Web：https://tequed232.github.io/duofen-kebiao/
