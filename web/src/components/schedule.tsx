@@ -697,7 +697,9 @@ export function ScheduleImportSheet({
   }, [open, settings.termStart, schedule.termStart]);
 
   const importFile = async () => {
-    const file = await pickFile('课表文件', '.doc,.rtf,.html,.htm,.csv,.txt,.tsv,application/msword,text/rtf,text/html');
+    // 不限制 accept：调起系统文件浏览器（Android 文件管理器 / iOS 文件 App / 桌面资源管理器）
+    // 让用户自由选择，选完再按内容嗅探格式（RTF、HTML 表格、CSV/文本）
+    const file = await pickFile('课表文件');
     if (!file) return;
     setBusy(true);
     try {
@@ -705,7 +707,11 @@ export function ScheduleImportSheet({
       setSchedule(parsed);
       onImported(`已导入 ${file.name}：${parsed.periods.length} 个节次`);
     } catch (error) {
-      showSnackbar({ message: `课表解析失败：${error instanceof Error ? error.message : '未知错误'}`, duration: 6000 });
+      const reason = error instanceof Error ? error.message : '未知错误';
+      showSnackbar({
+        message: `“${file.name}”解析失败：${reason}。支持教务系统导出的 .doc/.rtf、另存为的 .html，以及 .csv/.txt 文本。`,
+        duration: 8000,
+      });
     } finally {
       setBusy(false);
     }
@@ -742,8 +748,8 @@ export function ScheduleImportSheet({
 
         <div className="button-group" style={{ justifyContent: 'flex-start' }}>
           <md-filled-tonal-button onClick={() => void importFile()} disabled={busy ? '' : undefined}>
-            <MdIcon slot="icon" name="upload_file" />
-            选择文件
+            <MdIcon slot="icon" name="folder_open" />
+            用系统文件管理器选择
           </md-filled-tonal-button>
           <md-outlined-button onClick={() => { setSchedule(null); onImported('已恢复内置课表'); }}>
             <MdIcon slot="icon" name="settings_backup_restore" />
@@ -751,7 +757,8 @@ export function ScheduleImportSheet({
           </md-outlined-button>
         </div>
         <div className="md-body-small muted">
-          支持 .doc/.rtf（教务系统导出）、.html（表格另存为）、.csv/.txt（复制的课表文本）。导入后保存在本机浏览器。
+          点击后会调起系统自带的文件浏览器（Android 文件管理器 / iOS 文件 / 桌面资源管理器），文件类型不限；
+          选中后按内容自动识别：教务系统导出的 .doc/.rtf、另存为的 .html 表格、.csv/.txt 文本。导入结果保存在本机。
         </div>
 
         <MdTextField

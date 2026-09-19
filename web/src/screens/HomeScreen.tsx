@@ -333,42 +333,41 @@ export default function HomeScreen() {
 
         <div className="flex-1" style={{ minHeight: 16 }} />
 
-        {/* ------------------------------------------------- input + buttons */}
-        <div className="col" style={{ position: 'relative' }}>
-          <div
-            {...longPressField}
-            className="home-input"
-            style={{ position: 'relative', zIndex: 2, marginBottom: -24, touchAction: 'manipulation' }}
-          >
-            <MdTextField
-              label={questionMode ? '提问模式 · 回车发送' : '长按输入文本'}
-              value={questionMode ? question : manualText}
-              onValueChange={(value) => (questionMode ? setQuestion(value) : setManualText(value))}
-              onEnter={() => (questionMode ? void submitQuestion() : submitManualText())}
-              leadingIcon={<MdIcon name="voice_selection" />}
-              trailingIcon={
-                questionMode ? (
-                  <div className="row" style={{ gap: 0 }}>
-                    <MdIconButton icon="send" label="发送问题" onClick={() => void submitQuestion()} />
-                    <MdIconButton icon="close" label="退出提问模式" onClick={() => setQuestionMode(false)} />
-                  </div>
-                ) : (
-                  <MdIconButton icon="keyboard_return" label="追加到转写文字" onClick={submitManualText} />
-                )
-              }
-            />
-          </div>
+        <div className="flex-1" style={{ minHeight: 8 }} />
+      </div>
 
-          <div className="button-group" style={{ marginTop: 8 }}>
-            <md-filled-button onClick={() => nav.push('camera', {}, 'zoom')}>
-              <MdIcon slot="icon" name="photo_camera" />
-              拍照
-            </md-filled-button>
-            <md-filled-button onClick={() => void importImage()} disabled={busy ? '' : undefined}>
-              <MdIcon slot="icon" name="add_photo_alternate" />
-              导入图片
-            </md-filled-button>
-          </div>
+      {/* -------------------------------- 固定在页面左右两侧的底部控件 ------ */}
+      <div className="home-footer">
+        <div {...longPressField} className="home-input" style={{ touchAction: 'manipulation' }}>
+          <MdTextField
+            label={questionMode ? '提问模式 · 回车发送' : '长按输入文本'}
+            value={questionMode ? question : manualText}
+            onValueChange={(value) => (questionMode ? setQuestion(value) : setManualText(value))}
+            onEnter={() => (questionMode ? void submitQuestion() : submitManualText())}
+            leadingIcon={<MdIcon name="voice_selection" />}
+            trailingIcon={
+              questionMode ? (
+                <div className="row" style={{ gap: 0 }}>
+                  <MdIconButton icon="send" label="发送问题" onClick={() => void submitQuestion()} />
+                  <MdIconButton icon="close" label="退出提问模式" onClick={() => setQuestionMode(false)} />
+                </div>
+              ) : (
+                <MdIconButton icon="keyboard_return" label="追加到转写文字" onClick={submitManualText} />
+              )
+            }
+          />
+        </div>
+
+        {/* 拍照贴左边缘、导入图片贴右边缘，不再挤在中间 */}
+        <div className="home-actions">
+          <md-filled-button onClick={() => nav.push('camera', {}, 'zoom')}>
+            <MdIcon slot="icon" name="photo_camera" />
+            拍照
+          </md-filled-button>
+          <md-filled-button onClick={() => void importImage()} disabled={busy ? '' : undefined}>
+            <MdIcon slot="icon" name="add_photo_alternate" />
+            导入图片
+          </md-filled-button>
         </div>
       </div>
 

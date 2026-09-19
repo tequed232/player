@@ -987,3 +987,31 @@ md-circular-progress {
   --md-circular-progress-active-indicator-color: var(--md-sys-color-primary);
   --md-circular-progress-size: 20px;
 }
+
+/* ---------------------------------------------- home bottom controls ------- */
+/* 长按输入文本 + 拍照/导入图片：固定在下部，两个按钮分别贴住左右两侧 */
+.home-footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 16px 12px;
+  background: var(--md-sys-color-surface);
+  border-top: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 40%, transparent);
+}
+
+.home-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.home-actions > md-filled-button:first-child {
+  --md-filled-button-container-shape: var(--md-sys-shape-corner-full);
+}
+
+.home-actions > md-filled-button:last-child {
+  --md-filled-button-container-shape: var(--md-sys-shape-corner-full);
+}

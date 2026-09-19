@@ -1,32 +1,49 @@
 /** Image picking, downscaling and camera frame capture. */
 
-/** Natural image picker: one image at a time, via the platform file chooser. */
-export function pickImageFile(): Promise<File | null> {
-  return pickFile('图片', 'image/*');
-}
-
-/** Generic single file picker (images, schedule documents, ...). */
-export function pickFile(_label: string, accept: string): Promise<File | null> {
+/**
+ * 调起系统文件浏览器选择单个文件。
+ *
+ * accept 为空时**不设置 accept 属性**：Android 的文件管理器 / iOS 文件 App 会按
+ * accept 里声明的类型把不匹配的文件置灰，导致"选不了文件"。课表这类来源多样的
+ * 文件一律先让用户在系统文件浏览器里自由选择，选完再按内容识别格式。
+ */
+export function pickFile(_label: string, accept?: string): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = accept;
+    if (accept) input.accept = accept;
     input.multiple = false;
+    // 保留在布局里（部分浏览器会忽略 display:none 的输入框）
     input.style.position = 'fixed';
     input.style.left = '-1000px';
+    input.style.opacity = '0';
     document.body.appendChild(input);
-    const cleanup = () => input.remove();
-    input.addEventListener('change', () => {
-      const file = input.files && input.files[0] ? input.files[0] : null;
-      cleanup();
+
+    let settled = false;
+    const finish = (file: File | null) => {
+      if (settled) return;
+      settled = true;
+      input.remove();
+      window.removeEventListener('focus', onFocus);
       resolve(file);
-    });
-    input.addEventListener('cancel', () => {
-      cleanup();
-      resolve(null);
-    });
+    };
+    // 桌面浏览器取消选择时不一定触发 cancel 事件，用窗口重新获得焦点兜底
+    const onFocus = () => {
+      window.setTimeout(() => {
+        if (!input.files || !input.files.length) finish(null);
+      }, 800);
+    };
+
+    input.addEventListener('change', () => finish(input.files?.[0] ?? null));
+    input.addEventListener('cancel', () => finish(null));
+    window.addEventListener('focus', onFocus, { once: true });
     input.click();
   });
+}
+
+/** Natural image picker: one image at a time, via the platform file chooser. */
+export function pickImageFile(): Promise<File | null> {
+  return pickFile('图片', 'image/*');
 }
 
 export function fileToDataUrl(file: Blob): Promise<string> {

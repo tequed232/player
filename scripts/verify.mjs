@@ -16,12 +16,22 @@ const URL = process.argv[2] ?? process.env.URL ?? 'http://127.0.0.1:4173/';
 const OUT_DIR = path.resolve(process.env.OUT_DIR ?? 'screenshots');
 const REPORT = path.join(OUT_DIR, 'report.json');
 
+/** 课表导入测试用的 RTF 文件（结构同教务系统导出）。 */
+const SCHEDULE_FIXTURE = path.resolve('build/test-schedule.rtf');
+const FIXTURE_RTF = String.raw`{\rtf1\ansi\ansicpg1252\deff0{\fonttbl{\f0\froman Times New Roman;}}
+节次/星期\cell 星期一\cell 星期二\cell 星期三\cell 星期四\cell 星期五\cell 星期六\cell 星期日\cell\row
+第1-2节\par 08:30-09:55\cell \cell 导入测试课程\par 3-20周[1,2]\par [测试老师]\par 2026测试01班\par 9-101[40人]\cell \cell \cell \cell \cell \cell\row
+第3-4节\par 10:15-11:40\cell \cell \cell 另一门测试课\par 5-18周[3,4]\par [王测试]\par 2026测试01班\par 3-202[40人]\cell \cell \cell \cell \cell\row
+}`;
+
 const consoleErrors = [];
 const pageErrors = [];
 const steps = [];
 const extra = {};
 
 await mkdir(OUT_DIR, { recursive: true });
+await mkdir(path.dirname(SCHEDULE_FIXTURE), { recursive: true });
+await writeFile(SCHEDULE_FIXTURE, FIXTURE_RTF, 'utf8');
 
 const persist = async () => {
   await writeFile(REPORT, JSON.stringify({ url: URL, extra, consoleErrors, pageErrors, steps }, null, 2));
@@ -668,6 +678,42 @@ try {
     extra.importSheet = (await top().locator('.sheet-panel').innerText()).slice(0, 220);
   });
   await shot('26-schedule-import');
+
+  /* 课表导入：必须调起系统文件浏览器（input[type=file]，且不限制 accept） */
+  await step('schedule import opens the system file browser', async () => {
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser', { timeout: 9000 }),
+      top()
+        .locator('md-filled-tonal-button:has-text("系统文件管理器")')
+        .click({ timeout: 7000 }),
+    ]);
+    extra.fileChooserAccept = await chooser.element().getAttribute('accept');
+    if (extra.fileChooserAccept) throw new Error(`accept filter should be empty, got ${extra.fileChooserAccept}`);
+    await chooser.setFiles(SCHEDULE_FIXTURE);
+    await page.waitForTimeout(1400);
+    // 导入成功后「课表数据」面板会自动收起，用消息条确认结果
+    extra.importSnackbar = await page.locator('.snackbar').first().innerText({ timeout: 8000 });
+    if (!extra.importSnackbar.includes('已导入')) throw new Error(`unexpected snackbar: ${extra.importSnackbar}`);
+  });
+  await shot('31-schedule-imported-file');
+
+  await step('imported course shows up on the board', async () => {
+    await page.waitForTimeout(600);
+    extra.importedChip = await top().locator('.course-chip:has-text("导入测试课程")').count();
+    if (!extra.importedChip) throw new Error('imported course not rendered');
+  });
+  await shot('32-schedule-imported-board');
+
+  await step('restore the built-in schedule', async () => {
+    await clickTop('.app-bar md-icon-button', 2);
+    await waitTop('.sheet-panel');
+    await page.waitForTimeout(600);
+    await top().locator('md-outlined-button:has-text("恢复内置")').click({ timeout: 7000 });
+    await page.waitForTimeout(1200);
+    extra.restoreSnackbar = await page.locator('.snackbar').first().innerText({ timeout: 8000 });
+    if (!extra.restoreSnackbar.includes('内置')) throw new Error(`unexpected snackbar: ${extra.restoreSnackbar}`);
+    extra.importedChipAfterRestore = await top().locator('.course-chip:has-text("导入测试课程")').count();
+  });
 } catch (error) {
   steps.push(`FATAL: ${error instanceof Error ? error.message : error}`);
 } finally {

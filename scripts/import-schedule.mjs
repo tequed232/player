@@ -181,7 +181,9 @@ for (const cells of rows) {
   });
 }
 
-const owner = /-\d+\s+(\S+)\s+课表信息/.exec(marked)?.[1] ?? '';
+// 不解析、不保存个人信息：文档里的姓名一律不落地，署名统一用班级版权行
+const ATTRIBUTION = '广东财贸信创3班版权所有';
+const owner = ATTRIBUTION;
 const term = /(\d{4}-\d{4}-\d)/.exec(marked)?.[1] ?? '';
 
 /* term start: the Monday on or before the first day of the term's first month */

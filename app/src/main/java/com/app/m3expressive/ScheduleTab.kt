@@ -3,6 +3,9 @@ package com.app.m3expressive
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,8 +27,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Navigation
 import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -50,8 +55,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -70,9 +73,9 @@ private fun dayIndex(date: LocalDate): Int = date.dayOfWeek.value - 1
 
 private fun mondayOf(date: LocalDate): LocalDate = date.minusDays(dayIndex(date).toLong())
 
-/** 教学周（第 1 周从 TERM_START 起算）。 */
+/** 教学周（第 1 周从 termStart 起算）。 */
 private fun weekNumber(date: LocalDate, termStart: String): Int {
-    val start = LocalDate.parse(termStart)
+    val start = runCatching { LocalDate.parse(termStart) }.getOrNull() ?: return 1
     val weeks = ChronoUnit.WEEKS.between(mondayOf(start), mondayOf(date))
     return (weeks + 1).toInt().coerceAtLeast(1)
 }
@@ -94,23 +97,51 @@ private fun runsInWeek(course: ScheduleCourse, week: Int): Boolean {
     }
 }
 
-private data class DayCourse(
-    val period: SchedulePeriod,
-    val course: ScheduleCourse,
-)
+private data class DayCourse(val period: SchedulePeriod, val course: ScheduleCourse)
 
-private fun coursesOfDay(day: Int, week: Int): List<DayCourse> =
-    EmbeddedSchedule.periods.flatMap { period ->
+private fun coursesOfDay(schedule: Schedule, day: Int, week: Int): List<DayCourse> =
+    schedule.periods.flatMap { period ->
         period.days.getOrNull(day).orEmpty()
             .filter { runsInWeek(it, week) }
             .map { DayCourse(period, it) }
     }
+
+/** 读取 SAF 返回文件的显示名。 */
+private fun displayName(context: Context, uri: Uri): String {
+    var name = uri.lastPathSegment ?: "课表文件"
+    runCatching {
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (index >= 0 && cursor.moveToFirst()) name = cursor.getString(index) ?: name
+        }
+    }
+    return name
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduleScreen() {
     val context = LocalContext.current
     val today = remember { LocalDate.now() }
+    var schedule by remember { mutableStateOf(ScheduleCodec.current(context)) }
+    var status by remember { mutableStateOf<String?>(null) }
+
+    // 系统内置文件选择器（SAF）：选完直接解析并保存
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val name = displayName(context, uri)
+        runCatching {
+            val stream = context.contentResolver.openInputStream(uri) ?: error("无法读取所选文件")
+            stream.use { input ->
+                val parsed = ScheduleCodec.parse(context, input, name)
+                ScheduleCodec.save(context, parsed)
+                schedule = parsed
+                "已导入 $name：${parsed.periods.size} 个节次 · ${parsed.courseCount} 门课"
+            }
+        }.onSuccess { status = it }
+            .onFailure { status = "「$name」解析失败：${it.message}。支持教务系统导出的 .doc/.rtf、另存为的 .html、.csv/.txt" }
+    }
+
     val initialWindow = remember {
         val index = dayIndex(today)
         if (index <= 3) mondayOf(today) else mondayOf(today).plusDays((index - 3).toLong())
@@ -121,22 +152,41 @@ fun ScheduleScreen() {
     var pendingAddress by remember { mutableStateOf<String?>(null) }
     val sheetState = rememberModalBottomSheetState()
 
-    val week = weekNumber(selected, EmbeddedSchedule.TERM_START)
+    val week = weekNumber(selected, schedule.termStart)
     val days = (0..3).map { windowStart.plusDays(it.toLong()) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-        // 标题 + 周次
+        // 标题 + 导入 / 恢复
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.CalendarMonth, null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text("四分课表", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
-                    "${EmbeddedSchedule.TERM} · 第 $week 教学周 · ${EmbeddedSchedule.OWNER}",
+                    "${schedule.term} · 第 $week 教学周 · ${schedule.owner}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            IconButton(onClick = { importLauncher.launch(arrayOf("*/*")) }) {
+                Icon(Icons.Outlined.FolderOpen, "用系统文件管理器导入课表")
+            }
+            IconButton(onClick = {
+                ScheduleCodec.clear(context)
+                schedule = ScheduleCodec.builtIn
+                status = "已恢复内置课表"
+            }) {
+                Icon(Icons.Outlined.RestartAlt, "恢复内置课表")
+            }
+        }
+
+        status?.let { text ->
+            Text(
+                text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp),
+            )
         }
 
         Row(
@@ -147,7 +197,10 @@ fun ScheduleScreen() {
             IconButton(onClick = { windowStart = windowStart.minusWeeks(1); selected = selected.minusWeeks(1) }) {
                 Icon(Icons.Outlined.ChevronLeft, "上一周")
             }
-            Text("第 $week 周 · ${days.last().monthValue}月${days.last().dayOfMonth}日止", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "第 $week 周 · ${days.last().monthValue}月${days.last().dayOfMonth}日止",
+                style = MaterialTheme.typography.titleSmall,
+            )
             IconButton(onClick = { windowStart = windowStart.plusWeeks(1); selected = selected.plusWeeks(1) }) {
                 Icon(Icons.Outlined.ChevronRight, "下一周")
             }
@@ -179,17 +232,14 @@ fun ScheduleScreen() {
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(WEEKDAY_SHORT[index], style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                        Text(
-                            "${date.monthValue}月${date.dayOfMonth}日",
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+                        Text("${date.monthValue}月${date.dayOfMonth}日", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
 
             Column(Modifier.verticalScroll(rememberScrollState()).height(430.dp)) {
                 var lastSection: String? = null
-                EmbeddedSchedule.periods.forEach { period ->
+                schedule.periods.forEach { period ->
                     if (period.section != lastSection) {
                         lastSection = period.section
                         Row(
@@ -266,13 +316,13 @@ fun ScheduleScreen() {
 
         Spacer(Modifier.height(12.dp))
         Text(
-            "${WEEKDAY_SHORT[dayIndex(selected)]} ${selected.monthValue}月${selected.dayOfMonth}日 · ${coursesOfDay(dayIndex(selected), week).size} 门课",
+            "${WEEKDAY_SHORT[dayIndex(selected)]} ${selected.monthValue}月${selected.dayOfMonth}日 · ${coursesOfDay(schedule, dayIndex(selected), week).size} 门课",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(8.dp))
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            val entries = coursesOfDay(dayIndex(selected), week)
+            val entries = coursesOfDay(schedule, dayIndex(selected), week)
             if (entries.isEmpty()) {
                 Text(
                     "这一天没有课程。左右滑动与上方表格可查看其他日期。",
@@ -390,14 +440,10 @@ private fun mapUri(provider: String, address: String): Uri {
     }
 }
 
-/** 启动导航：已设置默认地图就直接跳转，否则先询问并可选记住选择。 */
+/** 启动导航：已设置默认地图就直接跳转。 */
 fun openMap(context: Context, address: String, providerId: String? = null) {
-    val provider = providerId ?: MapPreferences.provider(context)
-    if (provider != null) {
-        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, mapUri(provider, address))) }
-        return
-    }
-    // 没有默认地图时由调用方弹出选择对话框（ScheduleScreen 的 pendingAddress 流程）
+    val provider = providerId ?: MapPreferences.provider(context) ?: return
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, mapUri(provider, address))) }
 }
 
 @Composable
@@ -426,8 +472,15 @@ private fun MapProviderDialog(
                         Box(
                             Modifier
                                 .size(18.dp)
-                                .border(2.dp, if (selected == id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, RoundedCornerShape(9.dp))
-                                .background(if (selected == id) MaterialTheme.colorScheme.primary else Color.Transparent, RoundedCornerShape(9.dp)),
+                                .border(
+                                    2.dp,
+                                    if (selected == id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                    RoundedCornerShape(9.dp),
+                                )
+                                .background(
+                                    if (selected == id) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    RoundedCornerShape(9.dp),
+                                ),
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(label)

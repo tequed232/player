@@ -32,7 +32,7 @@
       },
       "topBox": {
         "w": 380,
-        "h": 216,
+        "h": 174,
         "x": 16,
         "y": 8,
         "bg": "rgb(228, 234, 229)",
@@ -42,7 +42,7 @@
         "w": 380,
         "h": 424,
         "x": 16,
-        "y": 249,
+        "y": 207,
         "bg": "rgb(30, 77, 84)",
         "radius": "28px"
       },
@@ -54,37 +54,19 @@
         "bg": "rgba(0, 0, 0, 0)",
         "radius": "0px"
       },
-      "buttonGroup": {
-        "w": 380,
-        "h": 56,
-        "x": 16,
-        "y": 744,
-        "bg": "rgba(0, 0, 0, 0)",
-        "radius": "0px"
-      },
+      "buttonGroup": null,
       "textField": {
         "w": 380,
         "h": 56,
         "x": 16,
-        "y": 704,
+        "y": 678,
         "bg": "rgba(0, 0, 0, 0)",
         "radius": "0px"
       },
-      "buttons": [
-        {
-          "w": 96,
-          "h": 56,
-          "y": 744
-        },
-        {
-          "w": 124,
-          "h": 56,
-          "y": 744
-        }
-      ],
+      "buttons": [],
       "tokens": {
-        "buttonShapeStart": "28px",
-        "buttonShapeInnerEnd": "8px",
+        "buttonShapeStart": null,
+        "buttonShapeInnerEnd": null,
         "fieldShape": "16px",
         "fieldOutline": "#28332B",
         "navContainerHeight": "80px",
@@ -175,7 +157,7 @@
     },
     "persisted": [
       {
-        "title": "照片记录 · 2026/09/19 21:32",
+        "title": "照片记录 · 2026/09/19 21:42",
         "images": 1
       }
     ],
@@ -275,7 +257,12 @@
     "collapseLabel": "\n第 3 周 · 周六 9月19日 · 0 门课\n展开课表\n",
     "filterResults": 24,
     "highlighted": 1,
-    "importSheet": "\n课表数据\n\n当前课表：内置（来自 学生课表.doc） · 罗瑞谦 · 2026-2027-1 · 7 节次 · 24 门课\n\n选择文件\n\n恢复内置\n支持 .doc/.rtf（教务系统导出）、.html（表格另存为）、.csv/.txt（复制的课表文本）。导入后保存在本机浏览器。\n解析并导入文本\n学期开始日期（第 1 周周一）\n保存日期\n用于计算当前教学周，进而过滤每周实际开设的课程。"
+    "importSheet": "\n课表数据\n\n当前课表：内置（来自 学生课表.doc） · 广东财贸信创3班版权所有 · 2026-2027-1 · 7 节次 · 24 门课\n\n用系统文件管理器选择\n\n恢复内置\n点击后会调起系统自带的文件浏览器（Android 文件管理器 / iOS 文件 / 桌面资源管理器），文件类型不限； 选中后按内容自动识别：教务系统导出的 .doc/.rtf、另存为的 .html 表格、.csv/.txt 文本。导入结果保存在本机。\n",
+    "fileChooserAccept": null,
+    "importSnackbar": "已导入 test-schedule.rtf：2 个节次",
+    "importedChip": 1,
+    "restoreSnackbar": "已恢复内置课表",
+    "importedChipAfterRestore": 0
   },
   "consoleErrors": [],
   "pageErrors": [],
@@ -352,6 +339,11 @@
     "ok:filter result highlights the course",
     "shot:25-schedule-highlight",
     "ok:schedule import sheet",
-    "shot:26-schedule-import"
+    "shot:26-schedule-import",
+    "ok:schedule import opens the system file browser",
+    "shot:31-schedule-imported-file",
+    "ok:imported course shows up on the board",
+    "shot:32-schedule-imported-board",
+    "ok:restore the built-in schedule"
   ]
 }
