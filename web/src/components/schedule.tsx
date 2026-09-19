@@ -1,7 +1,8 @@
 /**
  * 课表 (schedule) building blocks:
  *  - PagedWeekBoard: the 4x4 board (上午/中午/下午/晚上 × 4 days) that pages left/right
- *    through the seven days of a teaching week, dragging follows the finger.
+ *    through the seven days of a teaching week; the table itself does not move with
+ *    the pointer - a left/right swipe switches page with a spring animation.
  *  - MonthDateDialog: 识别课表月份，按月份或具体日期跳转。
  *  - DayTimeline: the selected day's courses grouped by 上午/中午/下午/晚上.
  *  - CourseDetailSheet / MapChooserDialog / ScheduleImportSheet.
@@ -114,12 +115,10 @@ export function PagedWeekBoard({
   );
 
   const [page, setPage] = useState(() => (weekdayIndex(selectedDate) >= PAGE_SIZE ? 1 : 0));
-  const [offset, setOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
+  // 手势只用来“翻页/收起”，表格本身不跟着指针平移：滑动结束后用弹簧动画切到目标页
   const startX = useRef(0);
   const startY = useRef(0);
-  const moved = useRef(false);
-  const vertical = useRef(false);
+  const captured = useRef(false);
   const boardRef = useRef<HTMLDivElement>(null);
 
   // keep the visible page in sync when the selected day moves to the other half
@@ -133,54 +132,36 @@ export function PagedWeekBoard({
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     startX.current = event.clientX;
     startY.current = event.clientY;
-    moved.current = false;
-    vertical.current = false;
-    // pointer capture is taken only after a real drag starts, so taps on a course
-    // chip still reach the chip itself
+    captured.current = false;
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rawX = event.clientX - startX.current;
-    const rawY = event.clientY - startY.current;
-
-    // 向下的纵向手势：收起课表，腾出空间显示更多内容（向上滑则展开）
-    if (!moved.current && Math.abs(rawY) > Math.abs(rawX) && Math.abs(rawY) > 16) {
-      moved.current = true;
-      vertical.current = true;
-      (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-      return;
-    }
-    if (vertical.current) {
-      if (rawY > 36 && !collapsed) onToggleCollapse();
-      else if (rawY < -36 && collapsed) onToggleCollapse();
-      return;
-    }
-
-    if (!moved.current) {
-      if (Math.abs(rawX) < 8) return;
-      moved.current = true;
-      setDragging(true);
-      (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-    }
-    const width = boardRef.current?.clientWidth ?? 360;
-    const limit = width / PAGE_SIZE;
-    setOffset(Math.max(-limit, Math.min(limit, rawX)));
+    if (captured.current) return;
+    const dx = Math.abs(event.clientX - startX.current);
+    const dy = Math.abs(event.clientY - startY.current);
+    // 只有真正开始滑动时才捕获指针，短按仍然落到课程卡片上
+    if (Math.max(dx, dy) < 14) return;
+    captured.current = true;
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
   };
 
-  const endDrag = () => {
-    if (vertical.current) {
-      vertical.current = false;
-      moved.current = false;
+  const endGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!captured.current) return;
+    captured.current = false;
+    const dx = event.clientX - startX.current;
+    const dy = event.clientY - startY.current;
+    const horizontal = Math.abs(dx) > Math.abs(dy);
+
+    if (horizontal && Math.abs(dx) > 44) {
+      // 左右滑动：直接翻到上一页 / 下一页（不跟手平移）
+      setPage((value) => (dx < 0 ? Math.min(pages.length - 1, value + 1) : Math.max(0, value - 1)));
       return;
     }
-    if (!moved.current) return;
-    const width = boardRef.current?.clientWidth ?? 360;
-    const threshold = Math.max(36, width / 12);
-    if (offset <= -threshold) setPage((value) => Math.min(pages.length - 1, value + 1));
-    else if (offset >= threshold) setPage((value) => Math.max(0, value - 1));
-    setOffset(0);
-    setDragging(false);
-    moved.current = false;
+    if (!horizontal && Math.abs(dy) > 40) {
+      // 向下滑收起课表，向上滑展开
+      if (dy > 0 && !collapsed) onToggleCollapse();
+      else if (dy < 0 && collapsed) onToggleCollapse();
+    }
   };
 
   const sections = useMemo(
@@ -229,19 +210,17 @@ export function PagedWeekBoard({
           ref={boardRef}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          onPointerLeave={() => dragging && endDrag()}
+          onPointerUp={endGesture}
+          onPointerCancel={endGesture}
           role="group"
           aria-label="四日课表，左右滑动翻页查看一周七天"
         >
           <div
             className="week-pages"
             style={{
-              transform: `translate3d(calc(${-page * 100}% + ${offset}px), 0, 0)`,
-              transition: dragging
-                ? 'none'
-                : 'transform var(--md-sys-motion-spring-spatial-fast-duration, 350ms) var(--md-sys-motion-spring-spatial-fast, ease-out)',
+              transform: `translate3d(${-page * 100}%, 0, 0)`,
+              transition:
+                'transform var(--md-sys-motion-spring-spatial-fast-duration, 350ms) var(--md-sys-motion-spring-spatial-fast, ease-out)',
             }}
           >
             {pages.map((days, pageIndex) => (
