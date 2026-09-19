@@ -1,26 +1,36 @@
 /**
  * 课表 (schedule) building blocks:
- *  - FourDayBoard: the four day table with a 早/中/晚 time axis, drag to shift the
- *    four day window (跟手), tap a day to select it, tap a course for details.
+ *  - PagedWeekBoard: the 4x4 board (上午/中午/下午/晚上 × 4 days) that pages left/right
+ *    through the seven days of a teaching week, dragging follows the finger.
+ *  - MonthDateDialog: 识别课表月份，按月份或具体日期跳转。
  *  - DayTimeline: the selected day's courses grouped by 上午/中午/下午/晚上.
  *  - CourseDetailSheet / MapChooserDialog / ScheduleImportSheet.
  */
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { MdIcon, MdIconButton, MdTextField } from './md';
+import { Fragment, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { MdIcon, MdIconButton, MdTextField, useMdDialog } from './md';
 import { ExpandableSheet } from './overlays';
 import {
   MAP_PROVIDERS,
   SCHEDULE_SECTIONS,
   WEEKDAY_SHORT,
   addDays,
+  courseDates,
   courseKey,
+  courseRunsInWeek,
   courseWeekLabel,
   coursesOfDay,
   formatMonthDay,
+  formatMonthDayWeekday,
   isSameDay,
   mapProviderById,
+  maxWeekOf,
+  parseISODate,
   parseScheduleFile,
   parseTextSchedule,
+  startOfWeek,
+  termMonths,
+  toISODate,
+  weekdayIndex,
   type DayCourse,
   type ScheduleCourse,
   type ScheduleData,
@@ -43,190 +53,382 @@ export function highlightKeyFor(course: ScheduleCourse, dayIndex: number): strin
   return `${courseKey(course)}#${dayIndex}`;
 }
 
-/* ---------------------------------------------------------- four day board -- */
+/* --------------------------------------------- 4x4 paged week board -------- */
 
-export function FourDayBoard({
+interface BoardDay {
+  date: Date;
+  dayIndex: number;
+  /** the fourth column of the second page belongs to the next teaching week */
+  nextWeek: boolean;
+}
+
+interface BoardCellCourse {
+  course: ScheduleCourse;
+  period: SchedulePeriod;
+}
+
+const PAGE_SIZE = 4;
+const MAX_CHIPS = 3;
+
+/**
+ * The four-by-four board: four rows (上午 / 中午 / 下午 / 晚上) × four day columns.
+ * A teaching week has seven days, so the board pages left/right to cover them
+ * (page 1: 周一–周四, page 2: 周五–周日 + 下周一) with a finger-following drag.
+ */
+export function PagedWeekBoard({
   schedule,
-  windowStart,
-  selectedDate,
   week,
+  anchorDate,
+  selectedDate,
   highlightKey,
+  collapsed,
+  onToggleCollapse,
   onSelectDay,
-  onShiftWindow,
   onOpenCourse,
 }: {
   schedule: ScheduleData;
-  /** first of the four days shown */
-  windowStart: Date;
-  selectedDate: Date;
   week: number;
+  /** a date inside the week shown by the board */
+  anchorDate: Date;
+  selectedDate: Date;
   highlightKey?: string | null;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
   onSelectDay: (date: Date) => void;
-  onShiftWindow: (deltaDays: number) => void;
   onOpenCourse: (payload: { course: ScheduleCourse; period: SchedulePeriod; dayIndex: number }) => void;
 }) {
   const today = new Date();
-  const days = useMemo(() => [0, 1, 2, 3].map((offset) => addDays(windowStart, offset)), [windowStart]);
+  const mondayKey = toISODate(startOfWeek(anchorDate));
+  const monday = useMemo(() => parseISODate(mondayKey), [mondayKey]);
+
+  const pages = useMemo<BoardDay[][]>(
+    () => [
+      [0, 1, 2, 3].map((offset) => ({ date: addDays(monday, offset), dayIndex: offset, nextWeek: false })),
+      [4, 5, 6, 7].map((offset) => ({
+        date: addDays(monday, offset),
+        dayIndex: offset % 7,
+        nextWeek: offset === 7,
+      })),
+    ],
+    [monday],
+  );
+
+  const [page, setPage] = useState(() => (weekdayIndex(selectedDate) >= PAGE_SIZE ? 1 : 0));
   const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startX = useRef(0);
-  const captured = useRef(false);
+  const startY = useRef(0);
   const moved = useRef(false);
+  const vertical = useRef(false);
   const boardRef = useRef<HTMLDivElement>(null);
+
+  // keep the visible page in sync when the selected day moves to the other half
+  useEffect(() => {
+    if (!isSameDay(startOfWeek(selectedDate), monday)) return;
+    const index = weekdayIndex(selectedDate);
+    setPage(index >= PAGE_SIZE ? 1 : 0);
+  }, [selectedDate, monday]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     startX.current = event.clientX;
-    captured.current = false;
+    startY.current = event.clientY;
     moved.current = false;
-    // NOTE: pointer capture is taken only once a real drag starts, otherwise the
-    // click would be retargeted to the board and course chips would never open.
+    vertical.current = false;
+    // pointer capture is taken only after a real drag starts, so taps on a course
+    // chip still reach the chip itself
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const raw = event.clientX - startX.current;
+    const rawX = event.clientX - startX.current;
+    const rawY = event.clientY - startY.current;
+
+    // 向下的纵向手势：收起课表，腾出空间显示更多内容（向上滑则展开）
+    if (!moved.current && Math.abs(rawY) > Math.abs(rawX) && Math.abs(rawY) > 16) {
+      moved.current = true;
+      vertical.current = true;
+      (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+      return;
+    }
+    if (vertical.current) {
+      if (rawY > 36 && !collapsed) onToggleCollapse();
+      else if (rawY < -36 && collapsed) onToggleCollapse();
+      return;
+    }
+
     if (!moved.current) {
-      if (Math.abs(raw) < 8) return;
+      if (Math.abs(rawX) < 8) return;
       moved.current = true;
       setDragging(true);
       (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-      captured.current = true;
     }
     const width = boardRef.current?.clientWidth ?? 360;
-    // resistance beyond a quarter of the board width
-    const limit = width / 4;
-    setOffset(Math.max(-limit, Math.min(limit, raw)));
+    const limit = width / PAGE_SIZE;
+    setOffset(Math.max(-limit, Math.min(limit, rawX)));
   };
 
   const endDrag = () => {
-    if (!moved.current) {
-      captured.current = false;
+    if (vertical.current) {
+      vertical.current = false;
+      moved.current = false;
       return;
     }
+    if (!moved.current) return;
     const width = boardRef.current?.clientWidth ?? 360;
     const threshold = Math.max(36, width / 12);
-    if (offset <= -threshold) onShiftWindow(1);
-    else if (offset >= threshold) onShiftWindow(-1);
+    if (offset <= -threshold) setPage((value) => Math.min(pages.length - 1, value + 1));
+    else if (offset >= threshold) setPage((value) => Math.max(0, value - 1));
     setOffset(0);
     setDragging(false);
     moved.current = false;
-    captured.current = false;
   };
 
-  // group the periods by 早 / 中 / 晚 so the axis can label each block once
-  const blocks = useMemo(() => {
-    const result: { section: ScheduleSection; periods: SchedulePeriod[] }[] = [];
-    for (const period of schedule.periods) {
-      const last = result[result.length - 1];
-      if (last && last.section === period.section) last.periods.push(period);
-      else result.push({ section: period.section, periods: [period] });
+  const sections = useMemo(
+    () =>
+      SCHEDULE_SECTIONS.map((section) => ({
+        ...section,
+        periods: schedule.periods.filter((period) => period.section === section.id),
+      })).filter((section) => section.periods.length),
+    [schedule.periods],
+  );
+
+  const cellsFor = (dayIndex: number, section: ScheduleSection): BoardCellCourse[] => {
+    const periods = schedule.periods.filter((period) => period.section === section);
+    const result: BoardCellCourse[] = [];
+    for (const period of periods) {
+      for (const course of period.days[dayIndex] ?? []) {
+        if (courseRunsInWeek(course, week)) result.push({ course, period });
+      }
     }
     return result;
-  }, [schedule.periods]);
+  };
+
+  const dayCourseCount = (dayIndex: number) =>
+    schedule.periods.reduce(
+      (total, period) =>
+        total + (period.days[dayIndex] ?? []).filter((course) => courseRunsInWeek(course, week)).length,
+      0,
+    );
 
   return (
-    <div
-      className="sched-board"
-      ref={boardRef}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-      onPointerLeave={() => dragging && endDrag()}
-      role="group"
-      aria-label="四日课表，可左右滑动切换日期"
-    >
-      <div
-        className="sched-track"
-        style={{
-          transform: `translate3d(${offset}px, 0, 0)`,
-          transition: dragging
-            ? 'none'
-            : 'transform var(--md-sys-motion-spring-spatial-fast-duration, 350ms) var(--md-sys-motion-spring-spatial-fast, ease-out)',
-        }}
-      >
-        <div className="sched-grid">
-          <div className="sched-corner row" style={{ justifyContent: 'center' }}>
-            <MdIcon name="schedule" size={18} />
-          </div>
-          {days.map((date) => {
-            const index = (date.getDay() + 6) % 7;
-            const classes = ['sched-day-head'];
-            if (isSameDay(date, today)) classes.push('today');
-            if (isSameDay(date, selectedDate)) classes.push('selected');
-            return (
-              <div className={classes.join(' ')} key={date.toISOString()} onClick={() => onSelectDay(date)}>
-                <span className="day-name md-label-large-emphasized">{WEEKDAY_SHORT[index]}</span>
-                <span className="md-label-small">{formatMonthDay(date)}</span>
-              </div>
-            );
-          })}
+    <div className={['week-board', collapsed ? 'collapsed' : ''].join(' ').trim()}>
+      {/* collapsed summary bar: 向下滑动收起课表后显示更多内容 */}
+      <button type="button" className="week-collapse-bar" onClick={onToggleCollapse} aria-expanded={!collapsed}>
+        <MdIcon name="calendar_month" size={20} />
+        <span className="flex-1 md-title-small-emphasized">
+          第 {week} 周 · {WEEKDAY_SHORT[weekdayIndex(selectedDate)]} {formatMonthDay(selectedDate)} ·{' '}
+          {dayCourseCount(weekdayIndex(selectedDate))} 门课
+        </span>
+        <span className="md-label-medium muted">{collapsed ? '展开课表' : '收起课表'}</span>
+        <MdIcon name={collapsed ? 'expand_more' : 'expand_less'} size={20} />
+      </button>
 
-          {blocks.map((block) => (
-            <div className="sched-block" key={block.section}>
-              <div className="sched-section">
-                <span className="md-label-medium-emphasized">
-                  {SCHEDULE_SECTIONS.find((section) => section.id === block.section)?.label}
-                </span>
-                <span className="sched-section-rule" />
-              </div>
-              <div className="sched-grid">
-                {block.periods.map((period) => (
-                  <div key={period.period} style={{ display: 'contents' }}>
-                    <div className="sched-axis-cell">
-                      <div className="md-label-small-emphasized">{period.period.replace('第', '').replace('节', '')}</div>
-                      <div className="md-label-small" style={{ opacity: 0.75 }}>
-                        {period.time.split('-')[0]}
+      <div className="week-board-body">
+        <div
+          className="week-board-viewport"
+          ref={boardRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onPointerLeave={() => dragging && endDrag()}
+          role="group"
+          aria-label="四日课表，左右滑动翻页查看一周七天"
+        >
+          <div
+            className="week-pages"
+            style={{
+              transform: `translate3d(calc(${-page * 100}% + ${offset}px), 0, 0)`,
+              transition: dragging
+                ? 'none'
+                : 'transform var(--md-sys-motion-spring-spatial-fast-duration, 350ms) var(--md-sys-motion-spring-spatial-fast, ease-out)',
+            }}
+          >
+            {pages.map((days, pageIndex) => (
+              <div className="week-page" key={`page-${pageIndex}`} aria-hidden={pageIndex !== page}>
+                <div className="week-grid">
+                  <div className="week-corner">
+                    <MdIcon name="schedule" size={16} />
+                  </div>
+                  {days.map((day) => {
+                    const classes = ['week-day-head'];
+                    if (isSameDay(day.date, today)) classes.push('today');
+                    if (isSameDay(day.date, selectedDate)) classes.push('selected');
+                    if (day.nextWeek) classes.push('next-week');
+                    return (
+                      <div
+                        className={classes.join(' ')}
+                        key={day.date.toISOString()}
+                        onClick={() => onSelectDay(day.date)}
+                      >
+                        <span className="md-label-large-emphasized">
+                          {WEEKDAY_SHORT[day.dayIndex]}
+                          {day.nextWeek ? <span className="md-label-small"> 下</span> : null}
+                        </span>
+                        <span className="md-label-small">{formatMonthDay(day.date)}</span>
                       </div>
-                    </div>
-                    {days.map((date) => {
-                      const dayIndex = (date.getDay() + 6) % 7;
-                      const courses = (period.days[dayIndex] ?? []).filter(
-                        (course) => !course.weeks || parseWeekSetSafe(course.weeks).size === 0 || parseWeekSetSafe(course.weeks).has(week),
-                      );
-                      return (
-                        <div className="sched-cell" key={`${period.period}-${dayIndex}`}>
-                          {courses.length ? (
-                            courses.map((course) => {
-                              const tone = toneOf(course);
-                              const highlighted = highlightKey === highlightKeyFor(course, dayIndex);
-                              return (
+                    );
+                  })}
+
+                  {sections.map((section) => {
+                    const first = section.periods[0];
+                    const last = section.periods[section.periods.length - 1];
+                    return (
+                      <Fragment key={section.id}>
+                        <div className="week-row-head">
+                          <span className="md-label-medium-emphasized">{section.label}</span>
+                          <span className="md-label-small muted">{first.time.split('-')[0]}</span>
+                        </div>
+                        {days.map((day) => {
+                          const cells = cellsFor(day.dayIndex, section.id);
+                          return (
+                            <div className="week-cell" key={`${section.id}-${day.date.toISOString()}`}>
+                              {cells.slice(0, MAX_CHIPS).map((cell) => {
+                                const tone = toneOf(cell.course);
+                                const highlighted = highlightKey === highlightKeyFor(cell.course, day.dayIndex);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={`${cell.course.name}-${cell.course.teacher}-${cell.period.period}`}
+                                    className={`course-chip${tone ? ` tone-${tone}` : ''}${highlighted ? ' highlight' : ''}`}
+                                    onClick={() => onOpenCourse({ course: cell.course, period: cell.period, dayIndex: day.dayIndex })}
+                                  >
+                                    <span className="chip-period">{cell.period.period.replace('第', '').replace('节', '')}</span>
+                                    {cell.course.name}
+                                  </button>
+                                );
+                              })}
+                              {cells.length > MAX_CHIPS ? (
                                 <button
                                   type="button"
-                                  key={`${course.name}-${course.teacher}-${course.room}`}
-                                  className={`course-chip${tone ? ` tone-${tone}` : ''}${highlighted ? ' highlight' : ''}`}
-                                  onClick={() => onOpenCourse({ course, period, dayIndex })}
+                                  className="course-chip more"
+                                  onClick={() => onSelectDay(day.date)}
                                 >
-                                  {course.name}
+                                  +{cells.length - MAX_CHIPS} 门
                                 </button>
-                              );
-                            })
-                          ) : (
-                            <div className="sched-empty">—</div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                              ) : null}
+                              {!cells.length ? <div className="sched-empty">—</div> : null}
+                            </div>
+                          );
+                        })}
+                      </Fragment>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        </div>
+
+        <div className="week-board-footer">
+          <button
+            type="button"
+            className="board-dot"
+            aria-label="上一页"
+            disabled={page === 0}
+            onClick={() => setPage((value) => Math.max(0, value - 1))}
+          >
+            <MdIcon name="chevron_left" size={18} />
+          </button>
+          <div className="board-dots">
+            {pages.map((_, index) => (
+              <span
+                key={`dot-${index}`}
+                className={`board-dot-pill${index === page ? ' active' : ''}`}
+                onClick={() => setPage(index)}
+              />
+            ))}
+          </div>
+          <span className="md-label-small muted flex-1" style={{ textAlign: 'center' }}>
+            {page === 0 ? '周一 – 周四' : '周五 – 周日'} · 共 7 天
+          </span>
+          <button
+            type="button"
+            className="board-dot"
+            aria-label="下一页"
+            disabled={page === pages.length - 1}
+            onClick={() => setPage((value) => Math.min(pages.length - 1, value + 1))}
+          >
+            <MdIcon name="chevron_right" size={18} />
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function parseWeekSetSafe(spec: string): Set<number> {
-  const weeks = new Set<number>();
-  for (const part of spec.replace(/周/g, '').split(/[;,，、\s]+/)) {
-    const range = /^(\d+)\s*-\s*(\d+)$/.exec(part);
-    if (range) {
-      for (let week = Number(range[1]); week <= Number(range[2]); week += 1) weeks.add(week);
-    } else if (/^\d+$/.test(part)) weeks.add(Number(part));
-  }
-  return weeks;
+/** Month / date picker: 识别课表月份并跳转到该月某一周。 */
+export function MonthDateDialog({
+  open,
+  schedule,
+  value,
+  onCancel,
+  onPick,
+}: {
+  open: boolean;
+  schedule: ScheduleData;
+  value: Date;
+  onCancel: () => void;
+  onPick: (date: Date) => void;
+}) {
+  const months = useMemo(() => termMonths(schedule), [schedule]);
+  const [date, setDate] = useState(() => toISODate(value));
+  const dialogRef = useMdDialog(open);
+  useEffect(() => {
+    if (open) setDate(toISODate(value));
+  }, [open, value]);
+
+  return (
+    <md-dialog ref={dialogRef} className="app-dialog">
+      <div slot="headline">选择日期 / 月份</div>
+      <div slot="content" className="md-body-medium">
+        <div className="muted mb-8">
+          课表覆盖 {months.length ? `${months[0].label} – ${months[months.length - 1].label}` : '当前学期'}
+          （{schedule.term}，共 {maxWeekOf(schedule)} 个教学周）
+        </div>
+        <div className="month-chips">
+          {months.map((month) => {
+            const active = value.getFullYear() === month.year && value.getMonth() === month.month;
+            return (
+              <button
+                type="button"
+                key={month.label}
+                className={`chip${active ? ' solid' : ''}`}
+                onClick={() => onPick(month.firstMonday)}
+              >
+                <span className="md-label-large">{month.label}</span>
+                <span className="md-label-small">第 {month.weeks[0]}–{month.weeks[month.weeks.length - 1]} 周</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="md-title-small-emphasized mt-16 mb-8">按具体日期跳转</div>
+        <input
+          type="date"
+          value={date}
+          onChange={(event) => setDate(event.target.value)}
+          style={{
+            height: 56,
+            width: '100%',
+            borderRadius: 16,
+            border: '1px solid var(--md-sys-color-outline)',
+            background: 'var(--md-sys-color-surface)',
+            color: 'var(--md-sys-color-on-surface)',
+            padding: '0 16px',
+            fontFamily: 'var(--md-ref-typeface-brand)',
+            fontSize: 16,
+          }}
+        />
+        <div className="md-body-small muted mt-8">
+          所选日期所在教学周与星期会一起定位到课表。
+        </div>
+      </div>
+      <div slot="actions">
+        <md-text-button onClick={onCancel}>取消</md-text-button>
+        <md-text-button onClick={() => date && onPick(parseISODate(date))}>跳转</md-text-button>
+      </div>
+    </md-dialog>
+  );
 }
 
 /* ------------------------------------------------------------ day timeline -- */
@@ -367,7 +569,13 @@ export function CourseDetailSheet({
   onNavigate: (address: string, course: ScheduleCourse) => void;
 }) {
   const sourceRef = useRef<HTMLDivElement>(null);
+  const { schedule, settings } = useAppState();
   const course = payload?.course;
+  const termStart = settings.termStart || schedule.termStart;
+  // 识别课表月份：把周次换算成具体上课日期
+  const dates = course && payload ? courseDates(course, termStart, payload.dayIndex) : [];
+  const upcoming = dates.filter((date) => date >= new Date());
+  const shown = (upcoming.length ? upcoming : dates).slice(0, 5);
   return (
     <ExpandableSheet open={open} onClose={onClose} sourceRef={sourceRef} icon="event" title={course?.name ?? '课程'}>
       <div ref={sourceRef} />
@@ -391,6 +599,28 @@ export function CourseDetailSheet({
             <MdIcon name="repeat" size={18} />
             <span className="md-body-medium">{courseWeekLabel(course)}</span>
           </div>
+          {dates.length ? (
+            <div className="col gap-4">
+              <div className="row gap-8">
+                <MdIcon name="event_available" size={18} />
+                <span className="md-body-medium">
+                  共 {dates.length} 次课 · {dates[0].getMonth() + 1}月 – {dates[dates.length - 1].getMonth() + 1}月
+                </span>
+              </div>
+              <div className="chip-row">
+                {shown.map((date) => (
+                  <span className="chip" key={date.toISOString()}>
+                    <span className="md-label-large">{formatMonthDayWeekday(date)}</span>
+                  </span>
+                ))}
+                {dates.length > shown.length ? (
+                  <span className="chip">
+                    <span className="md-label-large">+{dates.length - shown.length}</span>
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <div className="row gap-8" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
             <MdIcon name="place" size={18} />
             <span className="md-body-medium flex-1">{course.room || '未填写地点'}</span>
@@ -422,6 +652,7 @@ export function MapChooserDialog({
 }) {
   const [selected, setSelected] = useState(MAP_PROVIDERS[0].id);
   const [remember, setRemember] = useState(false);
+  const dialogRef = useMdDialog(open);
   useEffect(() => {
     if (open) {
       setSelected(MAP_PROVIDERS[0].id);
@@ -430,7 +661,7 @@ export function MapChooserDialog({
   }, [open]);
 
   return (
-    <md-dialog open={open ? '' : undefined} onCancel={onCancel} className="app-dialog">
+    <md-dialog ref={dialogRef} onCancel={onCancel} className="app-dialog">
       <div slot="headline">选择地图应用</div>
       <div slot="content" className="md-body-medium">
         <div className="mb-8 muted">将为「{address}」启动导航</div>

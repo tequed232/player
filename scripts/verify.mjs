@@ -255,6 +255,28 @@ try {
   });
   await shot('05-api-edit');
 
+  await step('saving the speech API opens the recording trial', async () => {
+    await top().locator('md-outlined-text-field input').first().fill('https://example.com/v1/audio/transcriptions');
+    await page.waitForTimeout(300);
+    await top().locator('md-filled-button:has-text("保存配置")').click({ timeout: 7000 });
+    await page.waitForTimeout(1000);
+    extra.trialDialog = await page.locator('md-dialog[open]').first().innerText();
+    if (!extra.trialDialog.includes('录音试用')) throw new Error('recording trial dialog did not open');
+  });
+  await shot('29-api-trial');
+
+  await step('close the recording trial dialog', async () => {
+    await page.locator('md-dialog[open] md-text-button').first().click({ timeout: 7000 });
+    await page.waitForTimeout(700);
+    // clear the test endpoint again so the rest of the flow stays offline
+    await top().locator('md-outlined-text-field input').first().fill('');
+    await page.waitForTimeout(300);
+    await top().locator('md-filled-button:has-text("保存配置")').click({ timeout: 7000 });
+    await page.waitForTimeout(600);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+  });
+
   await step('api back', async () => {
     await clickTop('.app-bar md-icon-button', 0);
     await page.waitForTimeout(1000);
@@ -263,6 +285,29 @@ try {
   await step('home tab', async () => {
     await clickTop('md-navigation-tab', 0);
     await page.waitForTimeout(1000);
+  });
+
+  await step('quick start voice shows a progress bar', async () => {
+    // force: the tap itself mounts the progress row, which would otherwise fail
+    // Playwright's stability check even though the click already landed
+    await top()
+      .locator('.container-box.surface-high md-filled-tonal-icon-button')
+      .click({ force: true, timeout: 7000 });
+    await page.waitForTimeout(1800);
+    extra.recordingProgress = await top().locator('.recording-progress').count();
+    extra.recordingText = extra.recordingProgress ? await top().locator('.recording-progress').innerText() : '';
+    await shot('30-voice-progress');
+    if (extra.recordingProgress) {
+      await top()
+        .locator('.recording-progress md-icon-button')
+        .click({ force: true, timeout: 7000 })
+        .catch(() => undefined);
+      await page.waitForTimeout(900);
+      extra.recordingStopped = (await top().locator('.recording-progress').count()) === 0;
+    }
+    if (!extra.recordingProgress) {
+      extra.recordingNote = 'headless Chromium has no speech recognition service; progress bar not shown';
+    }
   });
 
   await step('open camera', async () => {
@@ -474,33 +519,71 @@ try {
   await shot('20-history-menu');
 
   /* ------------------------------------------------------------- 课表 screen */
-  await step('schedule tab shows the four day table', async () => {
+  await step('schedule tab shows the 4x4 paged board', async () => {
     await page.keyboard.press('Escape');
     await clickTop('md-navigation-tab', 2);
-    await waitTop('.sched-grid');
+    await waitTop('.week-grid');
     await page.waitForTimeout(900);
     extra.schedule = await page.evaluate(() => {
-      const board = document.querySelector('.sched-board');
-      const dayHeads = Array.from(document.querySelectorAll('.sched-day-head')).map((element) => element.textContent);
-      const chips = Array.from(document.querySelectorAll('.course-chip')).slice(0, 6).map((element) => element.textContent);
+      const board = document.querySelector('.week-board');
+      const pages = Array.from(document.querySelectorAll('.week-page'));
       const rect = board ? board.getBoundingClientRect() : null;
+      const activeIndex = Array.from(document.querySelectorAll('.board-dot-pill')).findIndex((dot) =>
+        dot.classList.contains('active'),
+      );
       return {
         board: rect ? { w: Math.round(rect.width), h: Math.round(rect.height) } : null,
-        dayHeads,
-        chips,
+        pageCount: pages.length,
+        pageSize: pages.map((page) => page.querySelectorAll('.week-day-head').length),
+        rows: pages[0] ? pages[0].querySelectorAll('.week-row-head').length : 0,
+        rowLabels: pages[0]
+          ? Array.from(pages[0].querySelectorAll('.week-row-head')).map((element) => element.textContent.trim())
+          : [],
+        dayHeads: pages[0]
+          ? Array.from(pages[0].querySelectorAll('.week-day-head')).map((element) => element.textContent)
+          : [],
         chipCount: document.querySelectorAll('.course-chip').length,
-        axisCells: document.querySelectorAll('.sched-axis-cell').length,
-        sections: Array.from(document.querySelectorAll('.sched-section')).map((element) => element.textContent.trim()),
+        activePage: activeIndex,
+        monthLabel: document.querySelector('.schedule-datebutton')?.textContent?.trim() ?? '',
         timelineItems: document.querySelectorAll('.timeline-item').length,
       };
     });
-    if (extra.schedule.dayHeads.length !== 4) throw new Error(`expected 4 day columns, got ${extra.schedule.dayHeads.length}`);
-    if (!extra.schedule.chipCount) throw new Error('no courses rendered in the four day table');
+    if (extra.schedule.pageCount !== 2) throw new Error(`expected 2 pages covering 7 days, got ${extra.schedule.pageCount}`);
+    if (extra.schedule.pageSize.some((size) => size !== 4)) throw new Error('each page must show 4 day columns');
+    if (extra.schedule.rows !== 4) throw new Error(`expected 4 section rows, got ${extra.schedule.rows}`);
+    if (!extra.schedule.chipCount) throw new Error('no courses rendered in the board');
   });
   await shot('21-schedule');
 
-  await step('course detail opens from the table', async () => {
-    await clickTop('.course-chip', 0);
+  await step('month / date picker recognises the schedule months', async () => {
+    await clickTop('.schedule-datebutton');
+    await page.waitForTimeout(700);
+    extra.monthDialog = await page.locator('md-dialog[open] .month-chips').innerText();
+    const months = await page.locator('md-dialog[open] .month-chips .chip').count();
+    if (months < 2) throw new Error(`expected several term months, got ${months}`);
+    await shot('27-schedule-months');
+    await page.locator('md-dialog[open] .month-chips .chip').nth(1).click();
+    await page.waitForTimeout(900);
+    extra.monthAfterPick = await top().locator('.schedule-datebutton').innerText();
+  });
+
+  await step('back to today after the month jump', async () => {
+    // 月历跳转后回到今天，确保当前周有课程可点开
+    await clickTop('.app-bar md-icon-button', 1);
+    await page.waitForTimeout(900);
+  });
+
+  await step('course detail opens from the board', async () => {
+    // click a chip on the *visible* page: the other page is translated off-screen
+    const activePage = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.board-dot-pill')).findIndex((dot) => dot.classList.contains('active')),
+    );
+    await top()
+      .locator('.week-page')
+      .nth(Math.max(0, activePage))
+      .locator('.course-chip')
+      .first()
+      .click({ timeout: 7000 });
     await waitTop('.sheet-panel');
     await page.waitForTimeout(700);
     extra.courseDetail = await top().locator('.sheet-panel').innerText();
@@ -512,22 +595,55 @@ try {
     await page.waitForTimeout(700);
   });
 
-  await step('dragging the table shifts the four day window', async () => {
-    const board = top().locator('.sched-board');
+  await step('dragging the board pages through the week', async () => {
+    const board = top().locator('.week-board-viewport');
     const box = await board.boundingBox();
     if (!box) throw new Error('board not found');
-    const before = await top().locator('.sched-day-head').first().innerText();
-    await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.5);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.5, { steps: 10 });
-    await page.mouse.up();
-    await page.waitForTimeout(800);
-    const after = await top().locator('.sched-day-head').first().innerText();
-    extra.windowBefore = before.replace(/\s+/g, ' ');
-    extra.windowAfter = after.replace(/\s+/g, ' ');
-    if (before === after) throw new Error('the four day window did not shift');
+    const readPage = () =>
+      page.evaluate(() =>
+        Array.from(document.querySelectorAll('.board-dot-pill')).findIndex((dot) => dot.classList.contains('active')),
+      );
+    const drag = async (fromRatio, toRatio) => {
+      await page.mouse.move(box.x + box.width * fromRatio, box.y + box.height * 0.4);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width * toRatio, box.y + box.height * 0.4, { steps: 12 });
+      await page.mouse.up();
+      await page.waitForTimeout(900);
+    };
+    const before = await readPage();
+    await drag(0.75, 0.2); // swipe left -> next page
+    let after = await readPage();
+    if (after === before) {
+      await drag(0.25, 0.8); // already at the last page -> swipe right
+      after = await readPage();
+    }
+    extra.pageBefore = before;
+    extra.pageAfter = after;
+    if (after === before) throw new Error('dragging did not page the board');
   });
-  await shot('23-schedule-dragged');
+  await shot('23-schedule-paged');
+
+  await step('swiping down collapses the board', async () => {
+    const board = top().locator('.week-board-viewport');
+    const box = await board.boundingBox();
+    if (!box) throw new Error('board not found');
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.35);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.35 + 90, { steps: 12 });
+    await page.mouse.up();
+    await page.waitForTimeout(900);
+    extra.collapsed = await top().locator('.week-board.collapsed').count();
+    extra.collapseLabel = await top().locator('.week-collapse-bar').innerText();
+    if (!extra.collapsed) throw new Error('board did not collapse on the downward swipe');
+  });
+  await shot('28-schedule-collapsed');
+
+  await step('tapping the summary expands the board again', async () => {
+    await clickTop('.week-collapse-bar');
+    await page.waitForTimeout(700);
+    const stillCollapsed = await top().locator('.week-board.collapsed').count();
+    if (stillCollapsed) throw new Error('board did not expand');
+  });
 
   await step('schedule filter screen', async () => {
     await clickTop('.app-bar md-icon-button', 0);
@@ -539,7 +655,7 @@ try {
 
   await step('filter result highlights the course', async () => {
     await clickTop('.filter-row', 0);
-    await waitTop('.sched-grid');
+    await waitTop('.week-grid');
     await page.waitForTimeout(900);
     extra.highlighted = await top().locator('.course-chip.highlight').count();
   });

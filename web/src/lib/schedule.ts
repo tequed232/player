@@ -172,6 +172,75 @@ export function courseKey(course: ScheduleCourse): string {
   return `${course.name}|${course.teacher}|${course.room}`;
 }
 
+/** The last teaching week mentioned anywhere in the schedule (1 when unknown). */
+export function maxWeekOf(schedule: ScheduleData): number {
+  let max = 1;
+  for (const period of schedule.periods) {
+    for (const day of period.days) {
+      for (const course of day) {
+        for (const week of parseWeekSpec(course.weeks)) max = Math.max(max, week);
+      }
+    }
+  }
+  return max;
+}
+
+export interface TermMonth {
+  year: number;
+  /** 0 based, like Date#getMonth */
+  month: number;
+  label: string;
+  /** Monday that starts the first teaching week inside this month */
+  firstMonday: Date;
+  weeks: number[];
+}
+
+/** 识别课表覆盖的月份：从学期开始到最后一个教学周。 */
+export function termMonths(schedule: ScheduleData): TermMonth[] {
+  const start = startOfWeek(parseISODate(schedule.termStart));
+  const lastWeek = maxWeekOf(schedule);
+  const end = addDays(start, lastWeek * 7 - 1);
+  const months: TermMonth[] = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cursor <= end) {
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    // teaching weeks whose Monday falls inside this month (or that overlap its first days)
+    const weeks: number[] = [];
+    for (let week = 1; week <= lastWeek; week += 1) {
+      const monday = addDays(start, (week - 1) * 7);
+      const sunday = addDays(monday, 6);
+      if (monday <= monthEnd && sunday >= monthStart) weeks.push(week);
+    }
+    if (weeks.length) {
+      const firstWeekMonday = addDays(start, (weeks[0] - 1) * 7);
+      months.push({
+        year,
+        month,
+        label: `${year}年${month + 1}月`,
+        firstMonday: firstWeekMonday < monthStart ? monthStart : firstWeekMonday,
+        weeks,
+      });
+    }
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return months;
+}
+
+/** 把某门课的周次换算成具体上课日期（用于显示月份与具体日期）。 */
+export function courseDates(course: ScheduleCourse, termStart: string, dayIndex: number): Date[] {
+  const start = startOfWeek(parseISODate(termStart));
+  return [...parseWeekSpec(course.weeks)]
+    .sort((a, b) => a - b)
+    .map((week) => addDays(start, (week - 1) * 7 + dayIndex));
+}
+
+export function formatMonthDayWeekday(date: Date): string {
+  return `${date.getMonth() + 1}月${date.getDate()}日 ${WEEKDAY_SHORT[weekdayIndex(date)]}`;
+}
+
 export type ScheduleField = 'course' | 'teacher' | 'place';
 
 export interface SearchHit {

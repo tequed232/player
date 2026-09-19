@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { SectionHeader, TopAppBar } from '../components/layout';
 import { MdIcon, MdIconButton, MdTextField } from '../components/md';
 import { ConfirmDialog } from '../components/overlays';
+import { RecordingTrialDialog } from '../components/voice';
 import { useAppState } from '../state/AppState';
 import { useNav } from '../nav/navigation';
 import { analyzeImage } from '../lib/api';
@@ -30,6 +31,7 @@ export default function ApiEditScreen() {
   const [testResult, setTestResult] = useState('');
   const [testing, setTesting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [trialOpen, setTrialOpen] = useState(false);
 
   const reload = () => {
     setSttUrl(settings.sttApiUrl);
@@ -61,6 +63,8 @@ export default function ApiEditScreen() {
       },
       { message: '已保存API配置' },
     );
+    // 填好语音转文字接口后先弹出录音试用，确认接口真的可用
+    if (sttUrl.trim()) setTrialOpen(true);
   };
 
   const pickTestImage = async () => {
@@ -265,6 +269,8 @@ export default function ApiEditScreen() {
           nav.pop();
         }}
       />
+
+      <RecordingTrialDialog open={trialOpen} onClose={() => setTrialOpen(false)} />
     </>
   );
 }

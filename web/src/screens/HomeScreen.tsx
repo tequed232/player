@@ -8,11 +8,12 @@
  *                  + connected button group [拍照][导入图片]
  * Nav bar        : 首页 selected
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppNavBar, SectionHeader, TopAppBar, useLongPress } from '../components/layout';
 import { MdIcon, MdIconButton, MdTextField } from '../components/md';
 import { ExpandableSheet } from '../components/overlays';
 import { KeyPointList, MindMapView, QaBranchList, TranscriptView } from '../components/content';
+import { RecordingProgress, useElapsedSeconds, useSystemNotice } from '../components/voice';
 import { useAppState } from '../state/AppState';
 import { useNav } from '../nav/navigation';
 import { useSpeechRecognition } from '../lib/speech';
@@ -52,6 +53,48 @@ export default function HomeScreen() {
     onFinal: appendTranscript,
     onError: (message) => showSnackbar({ message, duration: 6000 }),
   });
+
+  /* 录音进度条 + 系统通知（对应 Android 端流体云卡片） */
+  const notice = useSystemNotice();
+  // 通知每 5 秒刷新一次；进度条自己带 1 秒计时，避免整屏每秒重渲染
+  const noticeSeconds = useElapsedSeconds(speech.listening, 5000);
+  const wasListening = useRef(false);
+
+  const toggleMic = useCallback(async () => {
+    if (speech.listening) {
+      speech.stop();
+      notice.close();
+      const text = draft.transcript.trim();
+      if (text) {
+        notice.show('语音识别完成 · 四分', text.slice(0, 90));
+        window.setTimeout(() => notice.close(), 4000);
+      }
+      return;
+    }
+    const granted = await notice.request();
+    speech.start();
+    notice.show(
+      '正在录音 · 四分',
+      granted ? '实时语音转文字进行中，点按应用内麦克风停止' : '实时语音转文字进行中（未授予通知权限）',
+    );
+  }, [draft.transcript, notice, speech]);
+
+  // 定时刷新通知里的计时，让状态卡片保持“活着”
+  useEffect(() => {
+    if (!speech.listening) {
+      wasListening.current = false;
+      return;
+    }
+    wasListening.current = true;
+    const mm = Math.floor(noticeSeconds / 60)
+      .toString()
+      .padStart(2, '0');
+    const ss = (noticeSeconds % 60).toString().padStart(2, '0');
+    notice.show('正在录音 · 四分', `${mm}:${ss} · 实时语音转文字进行中`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noticeSeconds, speech.listening]);
+
+  useEffect(() => () => notice.close(), [notice]);
 
   const sheetOpen = topOpen || middleOpen;
 
@@ -194,13 +237,26 @@ export default function HomeScreen() {
             <span className="md-title-small-emphasized flex-1">
               {speech.listening ? '正在聆听…' : '实时语音转文字'}
             </span>
-            <MdIconButton
-              icon={speech.listening ? 'stop_circle' : 'mic'}
-              label={speech.listening ? '停止语音识别' : '开始语音识别'}
-              tonal
-              onClick={() => speech.toggle()}
+            {/* 麦克风按钮在可点击容器内部：阻止冒泡，避免同时打开全屏面板 */}
+            <span onClick={(event) => event.stopPropagation()}>
+              <MdIconButton
+                icon={speech.listening ? 'stop_circle' : 'mic'}
+                label={speech.listening ? '停止语音识别' : '开始语音识别'}
+                tonal
+                onClick={() => void toggleMic()}
+              />
+            </span>
+          </div>
+
+          {/* 快速开始：点击语音后的进度条 + 计时，同时发布系统通知 */}
+          <div onClick={(event) => event.stopPropagation()}>
+            <RecordingProgress
+              active={speech.listening}
+              label="正在录音 · 实时语音转文字"
+              onStop={() => void toggleMic()}
             />
           </div>
+
           <div className="flex-1 scroll-y">
             <TranscriptView transcript={draft.transcript} interim={speech.interim} />
           </div>

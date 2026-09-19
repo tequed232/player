@@ -31,90 +31,138 @@
   color: var(--md-sys-color-on-surface);
 }
 
-/* ------------------------------------------------------------ 4 day table -- */
+/* ------------------------------------------------ 4x4 paged week board ------ */
 
-.sched-board {
+.week-board {
   position: relative;
-  border-radius: var(--md-sys-shape-corner-extra-large);
+}
+
+/* collapsed summary bar (向下滑动收起课表后显示更多内容) */
+.week-collapse-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
   background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-brand);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--md-sys-shape-corner-extra-large);
+  transition: background var(--md-sys-motion-spring-effects-default-duration, 200ms) linear;
+}
+
+.week-board:not(.collapsed) .week-collapse-bar {
+  border-radius: var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large) 0 0;
+  background: var(--md-sys-color-surface-container);
+}
+
+.week-board-body {
+  overflow: hidden;
+  max-height: 640px;
+  opacity: 1;
+  transition:
+    max-height var(--md-sys-motion-spring-spatial-default-duration, 500ms)
+      var(--md-sys-motion-spring-spatial-default, cubic-bezier(0.2, 0, 0, 1)),
+    opacity var(--md-sys-motion-spring-effects-default-duration, 200ms) linear;
+}
+
+.week-board.collapsed .week-board-body {
+  max-height: 0;
+  opacity: 0;
+}
+
+.week-board-viewport {
   overflow: hidden;
   touch-action: pan-y;
   user-select: none;
+  background: var(--md-sys-color-surface-container-low);
 }
 
-.sched-track {
+.week-pages {
+  display: flex;
   will-change: transform;
 }
 
-.sched-grid {
+.week-page {
+  flex: 0 0 100%;
+  min-width: 0;
+  padding: 6px 6px 2px;
+}
+
+.week-grid {
   display: grid;
-  grid-template-columns: 54px repeat(4, minmax(0, 1fr));
+  grid-template-columns: 46px repeat(4, minmax(0, 1fr));
+  gap: 3px;
 }
 
-/* the 早/中/晚 blocks and their rows must span the whole grid */
-.sched-block {
-  grid-column: 1 / -1;
+.week-corner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
-.sched-corner {
-  height: 52px;
-}
-
-.sched-day-head {
-  height: 52px;
+.week-day-head {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  margin: 4px 2px;
+  gap: 1px;
+  height: 44px;
   border-radius: 14px;
   background: var(--md-sys-color-surface-container);
   color: var(--md-sys-color-on-surface-variant);
-  transition: background 200ms linear, color 200ms linear, transform 200ms var(--md-sys-motion-spring-effects-default, ease-out);
+  transition:
+    background 200ms linear,
+    color 200ms linear,
+    transform 200ms var(--md-sys-motion-spring-effects-default, ease-out);
 }
 
-.sched-day-head .day-name {
-  font-weight: 500;
-}
-
-.sched-day-head.today {
+.week-day-head.today {
   background: var(--md-sys-color-secondary-container);
   color: var(--md-sys-color-on-secondary-container);
 }
 
-.sched-day-head.selected {
+.week-day-head.selected {
   background: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-on-primary-container);
-  transform: scale(1.03);
+  transform: scale(1.02);
 }
 
-.sched-section {
-  grid-column: 1 / -1;
+.week-day-head.next-week {
+  opacity: 0.72;
+}
+
+.week-row-head {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px 4px;
-  color: var(--md-sys-color-on-surface-variant);
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px 4px 4px 6px;
+  border-radius: 12px;
   background: var(--md-sys-color-surface-container);
-}
-
-.sched-section .sched-section-rule {
-  flex: 1 1 auto;
-  height: 1px;
-  background: var(--md-sys-color-outline-variant);
-}
-
-.sched-axis-cell {
-  padding: 6px 6px 6px 10px;
   color: var(--md-sys-color-on-surface-variant);
-  border-top: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 45%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
 }
 
-.sched-cell {
+.week-row-head .md-label-small {
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+.week-cell {
+  min-height: 56px;
   padding: 3px;
-  border-top: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 45%, transparent);
-  min-height: 54px;
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
 }
 
 .course-chip {
@@ -123,17 +171,17 @@
   border: none;
   text-align: left;
   cursor: pointer;
-  border-radius: 12px;
-  padding: 6px 7px;
-  min-height: 46px;
+  border-radius: 10px;
+  padding: 4px 6px;
   font-family: var(--md-ref-typeface-brand);
   font-size: 11px;
-  line-height: 14px;
+  line-height: 13px;
   letter-spacing: 0.2px;
   background: var(--md-sys-color-surface-container-highest);
   color: var(--md-sys-color-on-surface);
   overflow: hidden;
-  transition: transform var(--md-sys-motion-spring-effects-fast-duration, 150ms) var(--md-sys-motion-spring-effects-fast, ease-out);
+  transition: transform var(--md-sys-motion-spring-effects-fast-duration, 150ms)
+    var(--md-sys-motion-spring-effects-fast, ease-out);
 }
 
 .course-chip:active {
@@ -150,8 +198,22 @@
   color: var(--md-sys-color-on-tertiary-container);
 }
 
+.course-chip.more {
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  text-align: center;
+}
+
+.course-chip .chip-period {
+  display: block;
+  opacity: 0.7;
+  font-size: 10px;
+  line-height: 12px;
+}
+
 .course-chip.highlight {
-  animation: course-highlight var(--md-sys-motion-spring-bounce-duration, 700ms) var(--md-sys-motion-spring-bounce, ease-out) 2;
+  animation: course-highlight var(--md-sys-motion-spring-bounce-duration, 700ms)
+    var(--md-sys-motion-spring-bounce, ease-out) 2;
   outline: 2px solid var(--md-sys-color-primary);
 }
 
@@ -160,7 +222,7 @@
     transform: scale(1);
   }
   40% {
-    transform: scale(1.14);
+    transform: scale(1.12);
   }
   100% {
     transform: scale(1);
@@ -169,9 +231,150 @@
 
 .sched-empty {
   color: var(--md-sys-color-on-surface-variant);
-  opacity: 0.6;
+  opacity: 0.5;
   font-size: 12px;
-  padding: 6px;
+  text-align: center;
+  padding: 4px;
+}
+
+.week-board-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px 8px;
+  background: var(--md-sys-color-surface-container-low);
+}
+
+.board-dot {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: pointer;
+}
+
+.board-dot:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.board-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.board-dot-pill {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--md-sys-color-outline-variant);
+  cursor: pointer;
+  transition:
+    width var(--md-sys-motion-spring-spatial-fast-duration, 350ms)
+      var(--md-sys-motion-spring-spatial-fast, ease-out),
+    background 200ms linear;
+}
+
+.board-dot-pill.active {
+  width: 22px;
+  background: var(--md-sys-color-primary);
+}
+
+/* month / date picker dialog */
+.month-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.month-chips .chip {
+  flex-direction: column;
+  height: auto;
+  padding: 8px 14px;
+  align-items: flex-start;
+  gap: 2px;
+  cursor: pointer;
+  font-family: var(--md-ref-typeface-brand);
+}
+
+/* the date / month row above the board */
+.schedule-datebutton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--md-sys-color-outline);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-brand);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------ recording progress ------- */
+
+.recording-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container);
+}
+
+.progress-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--md-sys-color-surface-container-highest);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--md-sys-color-primary);
+  transition: width 220ms linear;
+}
+
+.progress-fill.indeterminate {
+  width: 40%;
+  animation: progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.level-meter {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--md-sys-color-surface-container-highest);
+  overflow: hidden;
+}
+
+.level-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--md-sys-color-secondary);
+  transition: width 80ms linear;
+}
+
+.trial-recorder {
+  padding: 12px;
+  border-radius: 20px;
+  background: var(--md-sys-color-surface-container-low);
 }
 
 /* --------------------------------------------------------- day timeline --- */

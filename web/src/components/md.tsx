@@ -325,6 +325,37 @@ export function MdMenu({
   );
 }
 
+/**
+ * Open/close a Material Web `md-dialog` imperatively.
+ *
+ * React 19 assigns custom element props as *properties* when they exist, so passing
+ * `open=""` would set `dialog.open = ''` (falsy) and the dialog would never open.
+ * Always drive md-dialog through show()/close() instead.
+ */
+export function useMdDialog(open: boolean) {
+  const ref = useRef<HTMLElement & { show: () => void; close: () => void; open: boolean }>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    if (open && !element.open) {
+      try {
+        element.show();
+      } catch {
+        element.setAttribute('open', '');
+      }
+    } else if (!open && element.open) {
+      try {
+        element.close();
+      } catch {
+        element.removeAttribute('open');
+      }
+    }
+  }, [open]);
+
+  return ref;
+}
+
 export function MdDialog({
   open,
   headline,
