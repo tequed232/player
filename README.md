@@ -1,4 +1,5 @@
-﻿# 多分课表
+﻿# 多分课表（使用DeepSeek Harness，Google Gemini，M3ECanvas制作，本人仅有一点点审美技巧和Python开发经验 ）
+ 作于2026.9.19 时年大一
 
 Material 3 Expressive 风格的移动端 Web 应用：**实时语音转文字 + 图片转文字总结 + 历史记录 + 设置/API 配置**。
 目标形态为竖屏手机 **412 × 892dp**，浏览器内运行（`dist/` 为可直接部署的 production build）。
