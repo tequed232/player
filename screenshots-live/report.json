@@ -33,7 +33,7 @@
       },
       "topBox": {
         "w": 380,
-        "h": 146,
+        "h": 168,
         "x": 16,
         "y": 8,
         "bg": "rgb(228, 234, 229)",
@@ -41,9 +41,9 @@
       },
       "middleBox": {
         "w": 380,
-        "h": 424,
+        "h": 354,
         "x": 16,
-        "y": 179,
+        "y": 225,
         "bg": "rgb(30, 77, 84)",
         "radius": "28px"
       },
@@ -71,7 +71,7 @@
         "fieldShape": "16px",
         "fieldOutline": "#28332B",
         "navContainerHeight": "80px",
-        "navContainerColor": "color-mix(in srgb, #EAEFEB 72%, transparent)",
+        "navContainerColor": "transparent",
         "navIndicatorWidth": "64px",
         "navIndicatorHeight": "32px",
         "navIndicatorColor": "#3A4B3F"
@@ -86,7 +86,7 @@
     "settings": {
       "list": {
         "w": 380,
-        "h": 645,
+        "h": 661,
         "x": 16,
         "y": 72
       },
@@ -107,28 +107,28 @@
           "radius": "8px"
         },
         {
-          "h": 72,
+          "h": 88,
           "y": 297,
           "radius": "8px"
         },
         {
           "h": 72,
-          "y": 372,
+          "y": 388,
           "radius": "8px"
         },
         {
           "h": 88,
-          "y": 447,
+          "y": 463,
           "radius": "8px"
         },
         {
           "h": 88,
-          "y": 538,
+          "y": 554,
           "radius": "8px"
         },
         {
           "h": 88,
-          "y": 629,
+          "y": 645,
           "radius": "8px 8px 28px 28px"
         }
       ],
@@ -180,7 +180,7 @@
     },
     "persisted": [
       {
-        "title": "照片记录 · 2026/09/19 23:29",
+        "title": "照片记录 · 2026/09/20 00:09",
         "images": 1
       }
     ],
@@ -273,9 +273,9 @@
         "周四9月17日"
       ],
       "chipCount": 8,
-      "activePage": 0,
-      "monthLabel": "2026年9月 · 9月17日 周四",
-      "timelineItems": 1
+      "activePage": 1,
+      "monthLabel": "2026年9月 · 9月20日 周日",
+      "timelineItems": 5
     },
     "monthDialog": "2026年8月\n第 1–1 周\n2026年9月\n第 1–5 周\n2026年10月\n第 5–9 周\n2026年11月\n第 9–14 周\n2026年12月\n第 14–18 周\n2027年1月\n第 18–21 周",
     "monthAfterPick": "\n2026年9月 · 9月1日 周二\n",
@@ -286,7 +286,7 @@
     "pageBefore": 1,
     "pageAfter": 0,
     "collapsed": 1,
-    "collapseLabel": "\n第 3 周 · 周六 9月19日 · 0 门课\n展开课表\n",
+    "collapseLabel": "\n第 3 周 · 周日 9月20日 · 5 门课\n展开课表\n",
     "filterButton": " 筛选条件 老师 / 课程 / 地点 / 时间 一起设置 ",
     "filterSheet": " 筛选条件 清空 查看结果   老师  课程  地点  时间 只看某一天 四个条件会同时生效（交集）；结果里点课程可以跳回课表对应周次，点地点可以打",
     "filterFields": 3,

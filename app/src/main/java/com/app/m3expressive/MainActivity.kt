@@ -1,5 +1,7 @@
 ﻿package com.app.m3expressive
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -242,9 +244,16 @@ private fun HomeScreen(
     onCamera: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("M3 Expressive", style = MaterialTheme.typography.headlineMedium)
-        Text("多模态记录工作台", style = MaterialTheme.typography.titleMedium)
+    // 自适应：内容可滚动，小屏或大字体下不会被裁掉
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("多分课表", style = MaterialTheme.typography.headlineMedium)
+        Text("课表 · 语音 · 图片记录", style = MaterialTheme.typography.titleMedium)
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("快速开始", style = MaterialTheme.typography.titleLarge)
