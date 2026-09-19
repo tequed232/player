@@ -1221,3 +1221,105 @@ md-filled-text-field {
 .expressive-slider.snap-anchor {
   --md-slider-active-track-color: var(--md-sys-color-primary);
 }
+
+/* -------------------------------------------- 主页两个容器：自适应分配高度 -- */
+/* 上面「实时语音转文字」保持可读的最小高度并随窗口收缩，下面「总结」吃掉剩余空间，
+   两者都在同一个 flex 列里，不会再互相抢位置把上面的容器挤没 */
+.home-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.home-stack > .container-box.surface-high {
+  flex: 0 1 auto;
+  min-height: 148px;
+  max-height: 216px;
+  overflow: hidden;
+}
+
+.home-stack > .container-box.tertiary {
+  flex: 1 1 auto;
+  min-height: 200px;
+}
+
+.home-stack > .flex-1 {
+  flex: 0 0 auto;
+  min-height: 8px;
+}
+
+/* ------------------------------------------------- 底边栏风格互斥（避免冲突）-- */
+/* 液态玻璃开启时不再叠加 M3 的容器底色与高度阴影：一套表面语言说话 */
+.nav-bar.glass md-navigation-bar {
+  --md-navigation-bar-container-color: transparent;
+  box-shadow: none;
+}
+
+.nav-bar:not(.glass) md-navigation-bar {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.nav-bar:not(.glass)::before,
+.nav-bar:not(.glass)::after {
+  display: none;
+}
+
+/* ------------------------------------------- 关于页图片：一屏可见 + 自适应 -- */
+.about-art.meow-art,
+.about-art {
+  width: auto;
+  height: auto;
+  max-width: min(200px, 46vw);
+  max-height: 30vh;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
+  margin: 8px auto 0;
+  border-radius: 20px;
+}
+
+.about-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* 微信内置浏览器：再收一档，保证「关于」一页看完不用滚 */
+.wechat .about-art.meow-art {
+  max-width: min(150px, 38vw);
+  max-height: 22vh;
+}
+
+.wechat .meow-art {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+}
+
+.wechat .splash-art {
+  width: 132px;
+  height: 176px;
+}
+
+/* 微信里关闭 backdrop-filter：X5 内核表现不稳定，玻璃层自动退回半透明底 */
+.wechat .nav-bar.glass md-navigation-bar {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: color-mix(in srgb, var(--md-sys-color-surface-container) 92%, transparent);
+}
+
+.about-note-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-brand);
+  text-align: left;
+  cursor: pointer;
+}

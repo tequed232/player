@@ -277,11 +277,11 @@ export default function HomeScreen() {
   return (
     <>
       <div className={['screen-inner', sheetOpen ? 'stacked' : ''].join(' ').trim()}>
-        <div className="screen-content">
+        <div className="screen-content home-stack">
         {/* ---------------------------------------------- live transcript */}
         <div
           className="container-box surface-high clickable"
-          style={{ height: 216, display: 'flex', flexDirection: 'column', gap: 8 }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
           ref={topRef}
           onClick={() => setTopOpen(true)}
           role="button"
@@ -331,7 +331,7 @@ export default function HomeScreen() {
         {/* ------------------------------------ summary / key points / map */}
         <div
           className="container-box tertiary clickable"
-          style={{ minHeight: 424, display: 'flex', flexDirection: 'column', gap: 12 }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
           ref={middleRef}
           onClick={() => setMiddleOpen(true)}
           role="button"

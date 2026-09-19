@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 设置 (Settings)
  *
  * A 6 item list group (M3 Expressive connected list: 3dp gaps, 28dp outer corners,
@@ -23,6 +23,7 @@ export default function SettingsScreen() {
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
   const [schoolDialogOpen, setSchoolDialogOpen] = useState(false);
   /** 点数字直接输入精确值 */
+  const [styleDialogOpen, setStyleDialogOpen] = useState(false);
   const [valueDialog, setValueDialog] = useState<'speech' | 'camera' | null>(null);
   const [valueDraft, setValueDraft] = useState('');
   const [schoolDraft, setSchoolDraft] = useState(settings.schoolName);
@@ -134,13 +135,15 @@ export default function SettingsScreen() {
             </md-list-item>
 
             {/* -------------------------------------- 4 液态玻璃底边栏 */}
-            <md-list-item type="button" className="rounded-middle" onClick={() => toggleLiquidGlass()}>
+            <md-list-item type="button" className="rounded-middle" onClick={() => setStyleDialogOpen(true)}>
               <div slot="start" className="list-icon-badge">
                 <MdIcon name="blur_on" />
               </div>
-              <div slot="headline">液态玻璃底边栏</div>
+              <div slot="headline">底边栏风格（互斥）</div>
               <div slot="supporting-text">
-                {settings.liquidGlass ? '已开启：底边栏使用模糊 + 折射的玻璃效果' : '已关闭：底边栏使用不透明容器色'}
+                {settings.liquidGlass
+                  ? '当前：液态玻璃（模糊 + 折射，关闭 M3 容器底色）'
+                  : '当前：Material 3 原生（surfaceContainer 容器色，无玻璃层）'}
               </div>
             </md-list-item>
 
@@ -219,7 +222,7 @@ export default function SettingsScreen() {
                 step={1}
                 ticks
                 ariaLabel="语音输入强度"
-                onInput={(value) => setSpeechValue(dampen(value))}
+                onInput={(value) => setSpeechValue(value)}
                 onChange={(value) => {
                   const next = settle(value);
                   setSpeechValue(next);
@@ -249,7 +252,7 @@ export default function SettingsScreen() {
                 step={1}
                 ticks
                 ariaLabel="相机清晰度"
-                onInput={(value) => setCameraValue(dampen(value))}
+                onInput={(value) => setCameraValue(value)}
                 onChange={(value) => {
                   const next = settle(value);
                   setCameraValue(next);

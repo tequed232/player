@@ -4,6 +4,7 @@
  * 应用信息、Material 3 Expressive 设计说明、数据存储说明、美术资源致谢与
  * GitHub 链接都集中在这里（设置页只留一个入口）。
  */
+import { useState } from 'react';
 import { SectionHeader, TopAppBar } from '../components/layout';
 import { MdIcon } from '../components/md';
 import { MeowArt } from '../components/meow';
@@ -43,6 +44,8 @@ export default function AboutScreen() {
   const nav = useNav();
   const { records, schedule, seed, dynamicColor, textbooks } = useAppState();
   const textbookCount = Object.values(textbooks).filter((book) => book.title).length;
+  /** 设计说明默认折叠：微信里也能一屏看完，想看再点开 */
+  const [openNote, setOpenNote] = useState<string | null>(null);
 
   return (
     <div className="screen-inner">
