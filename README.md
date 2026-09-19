@@ -4,7 +4,7 @@
 Material 3 Expressive 风格的移动端 Web 应用：**实时语音转文字 + 图片转文字总结 + 历史记录 + 设置/API 配置**。
 目标形态为竖屏手机 **412 × 892dp**，浏览器内运行（`dist/` 为可直接部署的 production build）。
 
-**在线体验：<https://tequed232.github.io/duofen-kebiao/>** · **发布：<https://github.com/tequed232/duofen-kebiao/releases/tag/v1.0.2>**
+**在线体验：<https://tequed232.github.io/duofen-kebiao/>** · **发布：<https://github.com/tequed232/duofen-kebiao/releases>**
 
 > 仓库同时包含一份 Kotlin/Compose 的 Android 实现（`app/`，Gradle 工程）。本 README 描述 **Web 实现**。
 
