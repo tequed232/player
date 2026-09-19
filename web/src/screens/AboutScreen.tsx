@@ -6,6 +6,7 @@
  */
 import { SectionHeader, TopAppBar } from '../components/layout';
 import { MdIcon } from '../components/md';
+import { MeowArt } from '../components/meow';
 import { useAppState } from '../state/AppState';
 import { useNav } from '../nav/navigation';
 import { ART_CREDITS, GITHUB_URL, APP_NAME, APP_VERSION } from '../lib/meta';
@@ -108,7 +109,7 @@ export default function AboutScreen() {
               </div>
               <div className="md-body-small muted mt-4">{credit.note}</div>
               {credit.url.includes('18112887') ? (
-                <img className="about-art" src="./art/college-art.jpg" alt="广东财贸职业学院 官方教材呈现（美术资源）" />
+                <MeowArt className="about-art" alt="广东财贸职业学院 官方教材呈现（美术资源）" />
               ) : null}
               <div className="row gap-8 mt-8" style={{ flexWrap: 'wrap' }}>
                 <md-filled-tonal-button
@@ -130,6 +131,11 @@ export default function AboutScreen() {
             </div>
             <div className="md-body-small muted mt-4">
               源码、构建产物与更新记录都在 GitHub 上；Web 版由 GitHub Pages 托管。
+              底边栏的液态玻璃效果参考并引入了 
+              <a className="md-link" href="https://github.com/rdev/liquid-glass-react" target="_blank" rel="noopener noreferrer">
+                rdev/liquid-glass-react
+              </a>
+              （当前底边栏使用等价的自绘实现，见仓库说明）。
             </div>
             <div className="row gap-8 mt-8" style={{ flexWrap: 'wrap' }}>
               <md-filled-button

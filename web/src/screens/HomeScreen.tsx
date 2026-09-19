@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppNavBar, SectionHeader, TopAppBar, useLongPress } from '../components/layout';
 import { MdIcon, MdIconButton, MdTextField } from '../components/md';
+import { MeowArt } from '../components/meow';
 import { ExpandableSheet } from '../components/overlays';
 import { KeyPointList, MindMapView, QaBranchList, TranscriptView } from '../components/content';
 import { RecordingProgress, useElapsedSeconds, useSystemNotice } from '../components/voice';
@@ -429,12 +430,13 @@ export default function HomeScreen() {
           </div>
         </div>
 
-        {/* 拍照贴左边缘、导入图片贴右边缘，不再挤在中间 */}
+        {/* 拍照贴左边缘、导入图片贴右边缘；中间放可点的美术资源（戳一下喵～） */}
         <div className="home-actions">
           <md-filled-button onClick={() => nav.push('camera', {}, 'zoom')}>
             <MdIcon slot="icon" name="photo_camera" />
             拍照
           </md-filled-button>
+          <MeowArt onMeow={() => showSnackbar({ message: '喵～', duration: 1600 })} />
           <md-filled-button onClick={() => void importImage()} disabled={busy ? '' : undefined}>
             <MdIcon slot="icon" name="add_photo_alternate" />
             导入图片

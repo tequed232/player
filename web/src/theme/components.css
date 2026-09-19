@@ -1159,3 +1159,65 @@ md-filled-text-field {
   background: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-on-primary-container);
 }
+
+/* ------------------------------------------------ 可点美术资源（喵～） ----- */
+.meow-art {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: none;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--md-sys-color-surface-container-highest);
+  cursor: pointer;
+  transition: transform 180ms var(--md-sys-motion-spring-spatial-fast, ease-out);
+}
+
+.meow-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.meow-art.pop {
+  animation: meow-pop 420ms var(--md-sys-motion-spring-bounce, ease-out);
+}
+
+@keyframes meow-pop {
+  0% { transform: scale(1) rotate(0deg); }
+  30% { transform: scale(1.18) rotate(-6deg); }
+  60% { transform: scale(0.94) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.meow-art:active {
+  transform: scale(0.94);
+}
+
+.md-link {
+  color: var(--md-sys-color-primary);
+}
+
+/* 滑块：0/25/50/75/100 卡扣 + 数字可点编辑 */
+.overlay-value.editable {
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-brand);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 999px;
+  min-width: 56px;
+  text-align: center;
+}
+
+.overlay-value.editable:hover {
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+.expressive-slider.snap-anchor {
+  --md-slider-active-track-color: var(--md-sys-color-primary);
+}

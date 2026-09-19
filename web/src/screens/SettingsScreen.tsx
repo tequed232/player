@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 设置 (Settings)
  *
  * A 6 item list group (M3 Expressive connected list: 3dp gaps, 28dp outer corners,
@@ -22,6 +22,9 @@ export default function SettingsScreen() {
   const [cameraValue, setCameraValue] = useState(settings.cameraSharpness);
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
   const [schoolDialogOpen, setSchoolDialogOpen] = useState(false);
+  /** 点数字直接输入精确值 */
+  const [valueDialog, setValueDialog] = useState<'speech' | 'camera' | null>(null);
+  const [valueDraft, setValueDraft] = useState('');
   const [schoolDraft, setSchoolDraft] = useState(settings.schoolName);
   /** 卡扣（每 5%）落位时给数值一个短促的反馈 */
   const [snapPulse, setSnapPulse] = useState({ speech: false, camera: false });
@@ -31,6 +34,23 @@ export default function SettingsScreen() {
   useEffect(() => setSpeechValue(settings.speechIntensity), [settings.speechIntensity]);
   useEffect(() => setCameraValue(settings.cameraSharpness), [settings.cameraSharpness]);
 
+  /**
+   * 滑块阻尼 + 卡扣：
+   *  - 靠近 0/25/50/75/100 这五个卡扣时跟手变慢（阻尼 0.55），进入 ±3 直接吸附（卡扣）；
+   *  - 松开时若在 ±6 内也对齐到卡扣。
+   */
+  const ANCHORS = [0, 25, 50, 75, 100];
+  const dampen = (raw: number) => {
+    const anchor = ANCHORS.reduce((best, value) => (Math.abs(value - raw) < Math.abs(best - raw) ? value : best), 0);
+    const distance = Math.abs(raw - anchor);
+    if (distance <= 3) return anchor;
+    if (distance <= 12) return Math.round(anchor + (raw - anchor) * 0.55);
+    return Math.round(raw);
+  };
+  const settle = (raw: number) => {
+    const anchor = ANCHORS.reduce((best, value) => (Math.abs(value - raw) < Math.abs(best - raw) ? value : best), 0);
+    return Math.abs(raw - anchor) <= 6 ? anchor : Math.round(raw);
+  };
   const apiConfigured = Boolean(settings.sttApiUrl.trim() || settings.visionApiUrl.trim());
   const mapProvider = mapProviderById(settings.mapProvider);
 
@@ -146,7 +166,7 @@ export default function SettingsScreen() {
                 <MdIcon name="mic" />
               </div>
               <div slot="headline">语音输入强度调整</div>
-              <div slot="supporting-text">识别置信度门限：{Math.round(speechValue)}%（每 5% 一档）</div>
+              <div slot="supporting-text">识别置信度门限：{Math.round(speechValue)}%（0/25/50/75/100 卡扣，点数字可直接编辑）</div>
             </md-list-item>
 
             {/* -------------------------------------- 7 相机清晰度调整 */}
@@ -155,7 +175,7 @@ export default function SettingsScreen() {
                 <MdIcon name="camera_video" />
               </div>
               <div slot="headline">相机清晰度调整</div>
-              <div slot="supporting-text">拍摄分辨率与画质：{Math.round(cameraValue)}%（每 5% 一档）</div>
+              <div slot="supporting-text">拍摄分辨率与画质：{Math.round(cameraValue)}%（0/25/50/75/100 卡扣，点数字可直接编辑）</div>
             </md-list-item>
 
             {/* ------------------------------------------------ 8 关于本软件 */}
@@ -196,19 +216,28 @@ export default function SettingsScreen() {
                 value={speechValue}
                 min={0}
                 max={100}
-                step={5}
+                step={1}
                 ticks
                 ariaLabel="语音输入强度"
-                onInput={setSpeechValue}
+                onInput={(value) => setSpeechValue(dampen(value))}
                 onChange={(value) => {
-                  setSpeechValue(value);
+                  const next = settle(value);
+                  setSpeechValue(next);
                   pulse('speech');
-                  updateSettings({ speechIntensity: value }, { message: '已保存语音输入强度' });
+                  updateSettings({ speechIntensity: next }, { message: '已保存语音输入强度 ' + next + '%' });
                 }}
               />
-              <span className={`overlay-value md-label-medium${snapPulse.speech ? ' detent' : ''}`}>
+              <button
+                type="button"
+                className={`overlay-value editable md-label-medium${snapPulse.speech ? ' detent' : ''}`}
+                aria-label="编辑语音输入强度"
+                onClick={() => {
+                  setValueDraft(String(Math.round(speechValue)));
+                  setValueDialog('speech');
+                }}
+              >
                 {Math.round(speechValue)}%
-              </span>
+              </button>
             </div>
 
             <div className="group-overlay" style={{ top: 462, width: 182 }}>
@@ -217,19 +246,28 @@ export default function SettingsScreen() {
                 value={cameraValue}
                 min={0}
                 max={100}
-                step={5}
+                step={1}
                 ticks
                 ariaLabel="相机清晰度"
-                onInput={setCameraValue}
+                onInput={(value) => setCameraValue(dampen(value))}
                 onChange={(value) => {
-                  setCameraValue(value);
+                  const next = settle(value);
+                  setCameraValue(next);
                   pulse('camera');
-                  updateSettings({ cameraSharpness: value }, { message: '已保存相机清晰度' });
+                  updateSettings({ cameraSharpness: next }, { message: '已保存相机清晰度 ' + next + '%' });
                 }}
               />
-              <span className={`overlay-value md-label-medium${snapPulse.camera ? ' detent' : ''}`}>
+              <button
+                type="button"
+                className={`overlay-value editable md-label-medium${snapPulse.camera ? ' detent' : ''}`}
+                aria-label="编辑相机清晰度"
+                onClick={() => {
+                  setValueDraft(String(Math.round(cameraValue)));
+                  setValueDialog('camera');
+                }}
+              >
                 {Math.round(cameraValue)}%
-              </span>
+              </button>
             </div>
           </div>
 
@@ -278,6 +316,38 @@ export default function SettingsScreen() {
           updateSettings({ mapProvider: providerId }, { message: '已保存默认地图' });
         }}
       />
+
+      <MdDialog
+        open={valueDialog !== null}
+        headline={valueDialog === 'camera' ? '相机清晰度' : '语音输入强度'}
+        onClosed={() => setValueDialog(null)}
+        actions={
+          <>
+            <md-text-button onClick={() => setValueDialog(null)}>取消</md-text-button>
+            <md-text-button
+              onClick={() => {
+                const parsed = Number.parseInt(valueDraft, 10);
+                const next = Number.isFinite(parsed) ? Math.min(100, Math.max(0, parsed)) : 0;
+                if (valueDialog === 'camera') {
+                  setCameraValue(next);
+                  updateSettings({ cameraSharpness: next }, { message: '已保存相机清晰度 ' + next + '%' });
+                } else {
+                  setSpeechValue(next);
+                  updateSettings({ speechIntensity: next }, { message: '已保存语音输入强度 ' + next + '%' });
+                }
+                setValueDialog(null);
+              }}
+            >
+              保存
+            </md-text-button>
+          </>
+        }
+      >
+        输入 0–100 的整数；0/25/50/75/100 是滑块上的卡扣位置。
+        <div className="mt-12">
+          <MdTextField label="数值（0–100）" value={valueDraft} onValueChange={setValueDraft} type="number" />
+        </div>
+      </MdDialog>
 
       <MdDialog
         open={schoolDialogOpen}
