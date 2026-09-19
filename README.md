@@ -3,7 +3,44 @@
 Material 3 Expressive 风格的移动端 Web 应用：**实时语音转文字 + 图片转文字总结 + 历史记录 + 设置/API 配置**。
 目标形态为竖屏手机 **412 × 892dp**，浏览器内运行（`dist/` 为可直接部署的 production build）。
 
+**在线体验：<https://tequed232.github.io/player/>** · **发布：<https://github.com/tequed232/player/releases/tag/v1.0.2>**
+
 > 仓库同时包含一份 Kotlin/Compose 的 Android 实现（`app/`，Gradle 工程）。本 README 描述 **Web 实现**。
+
+---
+
+## 部署与发布
+
+GitHub Pages（`main` 分支根目录）直接托管生产构建：仓库根部的 `index.html` + `assets/` 就是 `dist/` 的内容，
+上一版单文件页面保留在 `legacy/index.html`，`.nojekyll` 关闭 Jekyll 处理。更新线上版本：
+
+```powershell
+npm run build
+Copy-Item dist\index.html index.html -Force
+Remove-Item assets -Recurse -Force; Copy-Item dist\assets assets -Recurse
+git add -A; git commit -m "Publish web build"; git push
+```
+
+生成 GitHub Release（Web 构建 zip + Android APK）：
+
+```powershell
+# 取出本机已保存的 GitHub 凭据（Git Credential Manager），不会打印 token
+$out = "protocol=https`nhost=github.com`n" | git credential fill
+$env:GITHUB_TOKEN = ($out | Select-String '^password=').Line.Substring(9)
+
+node --use-system-ca scripts/github-release.mjs --tag v1.0.2 --target main `
+  --name "v1.0.2 · Material 3 Expressive 语音图片笔记" --notes RELEASE_NOTES.md `
+  --asset "m3-expressive-web-1.0.2.zip=build/release/m3-expressive-web-1.0.2.zip" `
+  --asset "m3-expressive-android-1.0.2.apk=build/release/m3-expressive-android-1.0.2.apk"
+```
+
+> `--use-system-ca` 是必要的：本机 Node 默认信任链校验不到中间证书（`UNABLE_TO_VERIFY_LEAF_SIGNATURE`）。
+
+线上部署同样用 `scripts/verify.mjs` 回归：
+
+```powershell
+$env:OUT_DIR='screenshots-live'; node scripts/verify.mjs https://tequed232.github.io/player/
+```
 
 ---
 
@@ -79,6 +116,7 @@ dist/
 ```
 
 结果：**全部通过，0 个 console 错误、0 个 page error**；截图见 `screenshots/`（`report.json` 内含配色、尺寸与令牌核对数据）。
+线上部署（GitHub Pages）用同一套脚本跑过一遍，同样是 49 步全通过、0 错误。
 
 ## 与草图的三处有意偏差
 
@@ -98,6 +136,7 @@ web/src/
   components/             md.tsx（Material Web 封装）、layout / overlays / content
   screens/                7 个屏幕
   nav/ state/ lib/ theme/ 导航、全局状态、IndexedDB / 语音 / API / 图像、设计令牌
-scripts/                  subset-icons.mjs、check-icons.mjs、verify.mjs
+scripts/                  subset-icons.mjs、check-icons.mjs、verify.mjs、github-release.mjs、serve-dist.mjs
+legacy/index.html         上一版单文件页面（保留备查）
 vite.config.ts            root=web，outDir=dist
 ```

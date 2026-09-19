@@ -13,7 +13,7 @@ import path from 'node:path';
 import { chromium } from 'playwright';
 
 const URL = process.argv[2] ?? process.env.URL ?? 'http://127.0.0.1:4173/';
-const OUT_DIR = path.resolve('screenshots');
+const OUT_DIR = path.resolve(process.env.OUT_DIR ?? 'screenshots');
 const REPORT = path.join(OUT_DIR, 'report.json');
 
 const consoleErrors = [];
