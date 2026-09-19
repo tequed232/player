@@ -32,7 +32,7 @@
       },
       "topBox": {
         "w": 380,
-        "h": 216,
+        "h": 174,
         "x": 16,
         "y": 8,
         "bg": "rgb(228, 234, 229)",
@@ -42,7 +42,7 @@
         "w": 380,
         "h": 424,
         "x": 16,
-        "y": 249,
+        "y": 207,
         "bg": "rgb(30, 77, 84)",
         "radius": "28px"
       },
@@ -54,37 +54,19 @@
         "bg": "rgba(0, 0, 0, 0)",
         "radius": "0px"
       },
-      "buttonGroup": {
-        "w": 380,
-        "h": 56,
-        "x": 16,
-        "y": 744,
-        "bg": "rgba(0, 0, 0, 0)",
-        "radius": "0px"
-      },
+      "buttonGroup": null,
       "textField": {
-        "w": 380,
+        "w": 312,
         "h": 56,
-        "x": 16,
-        "y": 704,
+        "x": 84,
+        "y": 678,
         "bg": "rgba(0, 0, 0, 0)",
         "radius": "0px"
       },
-      "buttons": [
-        {
-          "w": 96,
-          "h": 56,
-          "y": 744
-        },
-        {
-          "w": 124,
-          "h": 56,
-          "y": 744
-        }
-      ],
+      "buttons": [],
       "tokens": {
-        "buttonShapeStart": "28px",
-        "buttonShapeInnerEnd": "8px",
+        "buttonShapeStart": null,
+        "buttonShapeInnerEnd": null,
         "fieldShape": "16px",
         "fieldOutline": "#28332B",
         "navContainerHeight": "80px",
@@ -166,8 +148,16 @@
     },
     "trialDialog": "录音试用语音转文字API\n将录制最长 15 秒的语音并直接调用：\nhttps://example.com/v1/audio/transcriptions\n准备就绪\n00:00\n提示：若接口未返回内容，请确认地址支持 multipart/form-data、字段名为 file，并已填写密钥。\n关闭\n\n开始录音",
     "recordingProgress": 1,
-    "recordingText": "正在录音 · 实时语音转文字\n00:01\n",
+    "recordingText": "正在录音 · 长时间录制\n00:01\n",
     "recordingStopped": true,
+    "micTapSnackbar": "进入长时间录制",
+    "micProgress": 1,
+    "micCircleClass": "mic-circle recording",
+    "micProgressAfterStop": 0,
+    "micLongSnackbar": "临时录制（松开后最多录制 10 秒）",
+    "micCircleTemporary": 1,
+    "fieldLabel": "输入文本",
+    "questionModeLabel": "提问模式 · 回车发送",
     "camera": {
       "w": 1440,
       "h": 1080,
@@ -175,7 +165,7 @@
     },
     "persisted": [
       {
-        "title": "照片记录 · 2026/09/19 21:35",
+        "title": "照片记录 · 2026/09/19 21:54",
         "images": 1
       }
     ],
@@ -219,7 +209,6 @@
       "error": "#B3261E",
       "springDuration": "283ms"
     },
-    "questionModeLabel": "提问模式 · 回车发送",
     "branchCount": 1,
     "branchText": "\n这段\n问：这段记录讲了什么？\n当前记录里没有找到与该问题相关的内容。可以先在主页录制语音或导入图片，再针对内容提问。",
     "sliderSupporting": "\n语音输入强度调整\n识别置信度门限：81%",
@@ -275,7 +264,12 @@
     "collapseLabel": "\n第 3 周 · 周六 9月19日 · 0 门课\n展开课表\n",
     "filterResults": 24,
     "highlighted": 1,
-    "importSheet": "\n课表数据\n\n当前课表：内置（来自 学生课表.doc） · 罗瑞谦 · 2026-2027-1 · 7 节次 · 24 门课\n\n选择文件\n\n恢复内置\n支持 .doc/.rtf（教务系统导出）、.html（表格另存为）、.csv/.txt（复制的课表文本）。导入后保存在本机浏览器。\n解析并导入文本\n学期开始日期（第 1 周周一）\n保存日期\n用于计算当前教学周，进而过滤每周实际开设的课程。"
+    "importSheet": "\n课表数据\n\n当前课表：内置（来自 学生课表.doc） · 广东财贸信创3班版权所有 · 2026-2027-1 · 7 节次 · 24 门课\n\n用系统文件管理器选择\n\n恢复内置\n点击后会调起系统自带的文件浏览器（Android 文件管理器 / iOS 文件 / 桌面资源管理器），文件类型不限； 选中后按内容自动识别：教务系统导出的 .doc/.rtf、另存为的 .html 表格、.csv/.txt 文本。导入结果保存在本机。\n",
+    "fileChooserAccept": null,
+    "importSnackbar": "已导入 test-schedule.rtf：2 个节次",
+    "importedChip": 1,
+    "restoreSnackbar": "已恢复内置课表",
+    "importedChipAfterRestore": 0
   },
   "consoleErrors": [],
   "pageErrors": [],
@@ -298,6 +292,13 @@
     "ok:home tab",
     "shot:30-voice-progress",
     "ok:quick start voice shows a progress bar",
+    "ok:mic circle: tap starts the long recording",
+    "shot:33-mic-long-recording",
+    "ok:mic circle: second tap stops recording",
+    "ok:mic circle: long press starts the temporary recording",
+    "shot:34-mic-temporary-recording",
+    "ok:input field: long press selects text, not question mode",
+    "shot:35-input-question-toggle",
     "ok:open camera",
     "shot:06-camera",
     "ok:shutter creates a record",
@@ -325,7 +326,7 @@
     "shot:16-delete-dialog",
     "ok:cancel delete dialog",
     "ok:back to history from detail",
-    "ok:long press enters question mode",
+    "ok:question mode is entered from the field icon",
     "shot:17-question-mode",
     "ok:question creates a mind-map branch",
     "shot:18-question-answer",
@@ -352,6 +353,11 @@
     "ok:filter result highlights the course",
     "shot:25-schedule-highlight",
     "ok:schedule import sheet",
-    "shot:26-schedule-import"
+    "shot:26-schedule-import",
+    "ok:schedule import opens the system file browser",
+    "shot:31-schedule-imported-file",
+    "ok:imported course shows up on the board",
+    "shot:32-schedule-imported-board",
+    "ok:restore the built-in schedule"
   ]
 }
