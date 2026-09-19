@@ -1,4 +1,4 @@
-/** Small helpers shared across screens. */
+﻿/** Small helpers shared across screens. */
 
 export function uid(prefix = 'id'): string {
   const random = Math.random().toString(36).slice(2, 8);
@@ -86,4 +86,19 @@ export function keywords(text: string): string[] {
     if (chunk.length === 1) cjk.push(chunk);
   }
   return [...latin, ...cjk].filter((w) => w.length > 1 && !STOP_WORDS.has(w));
+}
+
+/**
+ * 实时判断用户是在「提问」还是在「输入」：
+ * 问号结尾或含疑问词 → 提问（走问答，回答进思维导图分支）；
+ * 其余按普通输入处理（追加到语音转文字内容）。
+ */
+export function detectIntent(text: string): 'ask' | 'write' {
+  const trimmed = text.trim();
+  if (!trimmed) return 'write';
+  if (/[?？]$/.test(trimmed)) return 'ask';
+  if (/(吗|呢|什么|怎么|怎样|如何|为什么|为啥|哪|哪些|几|多少|是否|是不是|能不能|可不可以|有没有|请问|求|帮我|介绍一下|查一下|总结一下)/.test(trimmed)) {
+    return 'ask';
+  }
+  return 'write';
 }

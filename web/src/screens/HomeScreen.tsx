@@ -19,7 +19,7 @@ import { useNav } from '../nav/navigation';
 import { useSpeechRecognition } from '../lib/speech';
 import { analyzeImage, askQuestion, topicFor } from '../lib/api';
 import { pickImageFile, prepareImageFile } from '../lib/imaging';
-import { formatDateTime } from '../lib/utils';
+import { detectIntent, formatDateTime } from '../lib/utils';
 import type { Draft } from '../lib/types';
 
 export default function HomeScreen() {
@@ -148,6 +148,12 @@ export default function HomeScreen() {
     [notice],
   );
 
+  /** 回车/按钮：提问就发问，普通输入就追加到转写（在 submitQuestion 之后声明） */
+  const submitField = () => {
+    if (detectIntent(question) === 'ask') void submitQuestion();
+    else appendManualText();
+  };
+
   const sheetOpen = topOpen || middleOpen;
 
   /* ------------------------------------------------------------- actions */
@@ -217,6 +223,20 @@ export default function HomeScreen() {
     }
   }, [draft.images, draft.tags, setDraft, settings, showSnackbar]);
 
+  /** 实时判断用户在提问还是普通输入（见 lib/utils.detectIntent） */
+  const fieldIntent = detectIntent(question);
+  // 图标名单独取出来，避免图标扫描脚本把判断用的字符串也当成图标名
+  const fieldIcon = fieldIntent === 'ask' ? 'send' : 'keyboard_return';
+  const fieldIconLabel = fieldIntent === 'ask' ? '发送问题' : '追加到转写文字';
+
+  const appendManualText = useCallback(() => {
+    const text = question.trim();
+    if (!text) return;
+    appendTranscript(text);
+    setQuestion('');
+    showSnackbar({ message: '已追加到语音转文字内容', duration: 3000 });
+  }, [appendTranscript, question, showSnackbar]);
+
   const submitQuestion = useCallback(async () => {
     const text = question.trim();
     if (!text) return;
@@ -245,8 +265,9 @@ export default function HomeScreen() {
   }, [addBranchAnswer, draft.imageSummary, draft.transcript, effectiveKeyPoints, question, settings, showSnackbar]);
 
   const selectTab = (tab: 'home' | 'history' | 'schedule' | 'settings') => {
-    if (tab === 'home') {
-      nav.popTo('home');
+    // 课表是主页：点它回到栈底的课表页
+    if (tab === 'schedule') {
+      nav.popTo('schedule');
       return;
     }
     nav.push(tab, {}, 'slide');
@@ -318,26 +339,17 @@ export default function HomeScreen() {
         >
           <div className="row gap-8">
             <MdIcon name="summarize" size={20} />
-            <span className="md-title-small-emphasized flex-1">总结 · 重点 · 思维导图</span>
+            <span className="md-title-small-emphasized flex-1">重点 · 思维导图</span>
             <MdIcon name="open_in_full" size={18} />
           </div>
 
-          <div>
-            <div className="md-label-medium mb-8" style={{ opacity: 0.85 }}>
-              语音转文字
-            </div>
-            <div className="md-body-medium" style={{ maxHeight: 72, overflow: 'hidden' }}>
-              {draft.transcript ? draft.transcript : <span style={{ opacity: 0.8 }}>还没有语音内容。</span>}
-            </div>
-          </div>
-
-          <div>
-            <div className="md-label-medium mb-8" style={{ opacity: 0.85 }}>
-              图片总结
-            </div>
-            <div className="md-body-medium" style={{ maxHeight: 56, overflow: 'hidden' }}>
-              {draft.imageSummary || <span style={{ opacity: 0.8 }}>导入图片后由图片转文字API生成总结。</span>}
-            </div>
+          {/* 语音转文字与图片总结不再在这里重复展示，展开全屏面板时才显示 */}
+          <div className="row gap-8 md-body-small" style={{ opacity: 0.85 }}>
+            <MdIcon name="unfold_more" size={16} />
+            <span className="flex-1">
+              展开查看语音转文字、图片总结与重点全文
+              {draft.transcript || draft.imageSummary ? '（已有内容）' : '（暂无内容）'}
+            </span>
           </div>
 
           {draft.images.length ? (
@@ -397,12 +409,22 @@ export default function HomeScreen() {
 
           <div className="home-input">
             <MdTextField
-              label="提问 · 回车发送"
+              label={fieldIntent === 'ask' ? '提问 · 回车发送' : '输入 · 回车追加到转写'}
               value={question}
               onValueChange={setQuestion}
-              onEnter={() => void submitQuestion()}
-              supportingText="就上方总结内容与语音转文字提问，回答会收进思维导图分支"
-              trailingIcon={<MdIconButton icon="send" label="发送问题" onClick={() => void submitQuestion()} />}
+              onEnter={submitField}
+              supportingText={
+                fieldIntent === 'ask'
+                  ? '实时判断：提问 · 回答会收进思维导图分支'
+                  : '实时判断：普通输入 · 回车追加到语音转文字'
+              }
+              trailingIcon={
+                <MdIconButton
+                  icon={fieldIcon}
+                  label={fieldIconLabel}
+                  onClick={submitField}
+                />
+              }
             />
           </div>
         </div>

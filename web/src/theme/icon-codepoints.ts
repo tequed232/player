@@ -92,6 +92,7 @@ export const ICON_CODEPOINTS: Record<string, number> = {
   "summarize": 0xf071,
   "sync": 0xe627,
   "today": 0xe8df,
+  "unfold_more": 0xe5d7,
   "upload": 0xe2c6,
   "visibility": 0xe417,
   "visibility_off": 0xe8f5,

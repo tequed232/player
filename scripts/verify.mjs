@@ -144,6 +144,23 @@ try {
 
   extra.theme = await readTheme();
 
+  await step('the schedule is the home screen', async () => {
+    await waitTop('md-navigation-bar');
+    // 课表是主页：启动后应直接停在课表页
+    await waitTop('.week-board');
+    extra.homeRoute = await page.evaluate(() => {
+      const top = document.querySelector('.screen:not([aria-hidden="true"])');
+      return top ? (top.textContent ?? '').includes('四分课表') || (top.textContent ?? '').includes('课表') : false;
+    });
+    if (!extra.homeRoute) throw new Error('the schedule board was not the first screen');
+  });
+  await shot('00-schedule-home');
+
+  await step('go to the record screen', async () => {
+    await clickTop('md-navigation-tab', 1); // 课表(0) / 记录(1) / 历史(2) / 设置(3)
+    await page.waitForTimeout(1000);
+  });
+
   await step('home renders', async () => {
     await waitTop('md-navigation-bar');
     await waitTop('.container-box.tertiary');
@@ -218,7 +235,7 @@ try {
   });
 
   await step('history tab', async () => {
-    await clickTop('md-navigation-tab', 1);
+    await clickTop('md-navigation-tab', 2);
     await page.waitForTimeout(1000);
   });
   await shot('03-history-empty');
@@ -294,7 +311,7 @@ try {
   });
 
   await step('home tab', async () => {
-    await clickTop('md-navigation-tab', 0);
+    await clickTop('md-navigation-tab', 1);
     await page.waitForTimeout(1000);
   });
 
@@ -406,7 +423,7 @@ try {
   await shot('08-home-after-capture');
 
   await step('history with record', async () => {
-    await clickTop('md-navigation-tab', 1);
+    await clickTop('md-navigation-tab', 2);
     await waitTop('md-filled-card');
     await page.waitForTimeout(1000);
   });
@@ -450,7 +467,7 @@ try {
   await step('reload keeps the record', async () => {
     await page.reload({ waitUntil: 'load' });
     await page.waitForTimeout(1600);
-    await clickTop('md-navigation-tab', 1);
+    await clickTop('md-navigation-tab', 2);
     await waitTop('md-filled-card');
   });
   await shot('13-history-after-reload');
@@ -488,7 +505,7 @@ try {
   extra.afterUndoTheme = await readTheme();
 
   await step('record detail still opens from history', async () => {
-    await clickTop('md-navigation-tab', 1);
+    await clickTop('md-navigation-tab', 2);
     await waitTop('md-filled-card');
     await clickTop('md-filled-card');
     await page.waitForTimeout(1200);
@@ -509,14 +526,22 @@ try {
     await page.waitForTimeout(1200);
   });
 
-  await step('input field is question only', async () => {
-    await clickTop('md-navigation-tab', 0);
+  await step('input field detects ask vs write', async () => {
+    await clickTop('md-navigation-tab', 1);
     await page.waitForTimeout(1000);
-    // 语音转文字已由圆圈负责，输入框只用来提问
-    extra.questionModeLabel = await top()
-      .locator('md-outlined-text-field')
-      .first()
-      .evaluate((element) => element.label ?? element.getAttribute('label'));
+    // 空输入默认「输入」模式；输入疑问句后实时切换为「提问」
+    const fieldLabel = () =>
+      top()
+        .locator('md-outlined-text-field')
+        .first()
+        .evaluate((element) => element.label ?? element.getAttribute('label'));
+    extra.idleFieldLabel = await fieldLabel();
+    if (!String(extra.idleFieldLabel).includes('输入')) {
+      throw new Error(`empty field should default to input mode, got "${extra.idleFieldLabel}"`);
+    }
+    await top().locator('.home-input md-outlined-text-field input').first().fill('这节课的教材是什么？');
+    await page.waitForTimeout(400);
+    extra.questionModeLabel = await fieldLabel();
     if (!String(extra.questionModeLabel).includes('提问')) {
       throw new Error(`the input field should be question only, got "${extra.questionModeLabel}"`);
     }
@@ -592,7 +617,7 @@ try {
 
   /* -------------------------------------------------- history overflow menu */
   await step('history overflow menu opens', async () => {
-    await clickTop('md-navigation-tab', 1);
+    await clickTop('md-navigation-tab', 2);
     await page.waitForTimeout(1000);
     await clickTop('.app-bar md-icon-button', 0);
     await page.waitForTimeout(800);
@@ -603,7 +628,7 @@ try {
   /* ------------------------------------------------------------- 课表 screen */
   await step('schedule tab shows the 4x4 paged board', async () => {
     await page.keyboard.press('Escape');
-    await clickTop('md-navigation-tab', 2);
+    await clickTop('md-navigation-tab', 0);
     await waitTop('.week-grid');
     await page.waitForTimeout(900);
     extra.schedule = await page.evaluate(() => {
@@ -760,8 +785,19 @@ try {
 
   await step('schedule filter screen', async () => {
     await clickTop('.app-bar md-icon-button', 0);
-    await waitTop('md-tabs');
-    await page.waitForTimeout(800);
+    // 分类标签 + 搜索栏已合并成一个按钮，点开是老师/课程/地点/时间面板
+    await waitTop('.filter-button');
+    extra.filterButton = (await top().locator('.filter-button').innerText()).replace(/\s+/g, ' ');
+    await top().locator('.filter-button').click({ force: true, timeout: 7000 });
+    await waitTop('.sheet-panel');
+    await page.waitForTimeout(700);
+    extra.filterSheet = (await top().locator('.sheet-panel').innerText()).replace(/\s+/g, ' ').slice(0, 80);
+    if (!/老师|课程|地点|时间/.test(extra.filterSheet)) {
+      throw new Error(`filter sheet is missing sections: ${extra.filterSheet}`);
+    }
+    extra.filterFields = await top().locator('.sheet-panel md-outlined-text-field').count();
+    await top().locator('.sheet-panel md-filled-tonal-button').first().click({ timeout: 7000 });
+    await page.waitForTimeout(900);
     extra.filterResults = await top().locator('.filter-row').count();
   });
   await shot('24-schedule-filter');

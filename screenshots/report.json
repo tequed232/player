@@ -21,6 +21,7 @@
       "error": "#B3261E",
       "springDuration": "283ms"
     },
+    "homeRoute": true,
     "layout": {
       "phone": {
         "w": 412,
@@ -32,7 +33,7 @@
       },
       "topBox": {
         "w": 380,
-        "h": 138,
+        "h": 154,
         "x": 16,
         "y": 8,
         "bg": "rgb(228, 234, 229)",
@@ -42,7 +43,7 @@
         "w": 380,
         "h": 424,
         "x": 16,
-        "y": 171,
+        "y": 187,
         "bg": "rgb(30, 77, 84)",
         "radius": "28px"
       },
@@ -57,9 +58,9 @@
       "buttonGroup": null,
       "textField": {
         "w": 312,
-        "h": 92,
+        "h": 76,
         "x": 84,
-        "y": 642,
+        "y": 658,
         "bg": "rgba(0, 0, 0, 0)",
         "radius": "0px"
       },
@@ -76,9 +77,9 @@
         "navIndicatorColor": "#3A4B3F"
       },
       "icon": {
-        "codepoint": "e88a",
-        "w": 0,
-        "h": 0,
+        "codepoint": "ebcc",
+        "w": 24,
+        "h": 24,
         "font": "\"Material Symbols Rounded\", \"Material Icons\""
       }
     },
@@ -170,7 +171,7 @@
     "micProgressAfterStop": 0,
     "micLongSnackbar": "临时录制（松开后最多录制 10 秒）",
     "micCircleTemporary": 1,
-    "fieldLabel": "提问 · 回车发送",
+    "fieldLabel": "输入 · 回车追加到转写",
     "panelAfterLongPress": 0,
     "camera": {
       "w": 1440,
@@ -179,7 +180,7 @@
     },
     "persisted": [
       {
-        "title": "照片记录 · 2026/09/19 22:27",
+        "title": "照片记录 · 2026/09/19 23:16",
         "images": 1
       }
     ],
@@ -223,6 +224,7 @@
       "error": "#B3261E",
       "springDuration": "283ms"
     },
+    "idleFieldLabel": "输入 · 回车追加到转写",
     "questionModeLabel": "提问 · 回车发送",
     "mindmapLeaf": "问：军事理论用什么教材？ 当前记录里没有找到与该问题相关的内容。可以先在主页录制语音或导入图片，再针对内容提问。",
     "qaFold": 1,
@@ -285,6 +287,9 @@
     "pageAfter": 0,
     "collapsed": 1,
     "collapseLabel": "\n第 3 周 · 周六 9月19日 · 0 门课\n展开课表\n",
+    "filterButton": " 筛选条件 老师 / 课程 / 地点 / 时间 一起设置 ",
+    "filterSheet": " 筛选条件 清空 查看结果   老师  课程  地点  时间 只看某一天 四个条件会同时生效（交集）；结果里点课程可以跳回课表对应周次，点地点可以打",
+    "filterFields": 3,
     "filterResults": 24,
     "highlighted": 1,
     "importSheet": "\n课表数据\n\n当前课表：内置（来自 学生课表.doc） · 广东财贸信创3班版权所有 · 2026-2027-1 · 7 节次 · 24 门课\n\n用系统文件管理器选择\n\n恢复内置\n点击后会调起系统自带的文件浏览器（Android 文件管理器 / iOS 文件 / 桌面资源管理器），文件类型不限； 选中后按内容自动识别：教务系统导出的 .doc/.rtf、另存为的 .html 表格、.csv/.txt 文本。导入结果保存在本机。\n",
@@ -297,6 +302,9 @@
   "consoleErrors": [],
   "pageErrors": [],
   "steps": [
+    "ok:the schedule is the home screen",
+    "shot:00-schedule-home",
+    "ok:go to the record screen",
     "ok:home renders",
     "shot:01-home",
     "ok:transcript panel expands",
@@ -349,7 +357,7 @@
     "shot:16-delete-dialog",
     "ok:cancel delete dialog",
     "ok:back to history from detail",
-    "ok:input field is question only",
+    "ok:input field detects ask vs write",
     "shot:17-question-mode",
     "ok:question creates a mind-map branch",
     "shot:18-question-answer",

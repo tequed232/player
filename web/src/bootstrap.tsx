@@ -1,4 +1,4 @@
-/** Mounts the React tree (kept separate so main.tsx can do theme setup first). */
+﻿/** Mounts the React tree (kept separate so main.tsx can do theme setup first). */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -11,7 +11,7 @@ if (!container) throw new Error('#root not found');
 createRoot(container).render(
   <StrictMode>
     <AppStateProvider>
-      <NavProvider initial="home">
+      <NavProvider initial="schedule">
         <App />
       </NavProvider>
     </AppStateProvider>

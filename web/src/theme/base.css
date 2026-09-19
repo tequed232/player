@@ -370,3 +370,38 @@ body {
     transparent 70%
   );
 }
+
+/* 液态玻璃包装层不能挡住底边栏的点击：把导航条抬到玻璃高光之上 */
+.nav-bar.glass md-navigation-bar {
+  position: relative;
+  z-index: 2;
+}
+
+.nav-bar.glass > div > * {
+  pointer-events: none;
+}
+
+.nav-bar.glass > div > md-navigation-bar,
+.nav-bar.glass > div > md-navigation-bar * {
+  pointer-events: auto;
+}
+
+/* 开屏与关于页的美术资源 */
+.splash-art {
+  width: 168px;
+  height: 224px;
+  object-fit: cover;
+  border-radius: 24px;
+  margin-bottom: 14px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--md-sys-color-shadow) 24%, transparent);
+  animation: splash-pop var(--md-sys-motion-spring-bounce-duration, 700ms)
+    var(--md-sys-motion-spring-bounce, ease-out) both;
+}
+
+.about-art {
+  width: 100%;
+  max-width: 240px;
+  border-radius: 20px;
+  display: block;
+  margin-top: 8px;
+}

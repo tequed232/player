@@ -565,3 +565,30 @@ md-primary-tab {
   font-family: var(--md-ref-typeface-brand);
   font-size: 16px;
 }
+
+/* 筛选入口按钮 + 日期输入 */
+.filter-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 24px;
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-brand);
+  cursor: pointer;
+}
+
+.filter-date {
+  height: 56px;
+  border-radius: 16px;
+  border: 1px solid var(--md-sys-color-outline);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  padding: 0 16px;
+  font-family: var(--md-ref-typeface-brand);
+  font-size: 16px;
+}

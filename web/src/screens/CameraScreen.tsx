@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 摄像 (Camera)
  *
  * Live camera preview (20dp rounded), a filled "返回" button drawn on top of the
@@ -146,8 +146,9 @@ export default function CameraScreen() {
   };
 
   const selectTab = (tab: 'home' | 'history' | 'schedule' | 'settings') => {
-    if (tab === 'home') {
-      nav.popTo('home');
+    // 课表是主页：点它回到栈底的课表页
+    if (tab === 'schedule') {
+      nav.popTo('schedule');
       return;
     }
     nav.push(tab, {}, 'slide');

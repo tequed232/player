@@ -51,12 +51,13 @@ export function useScrolled<T extends HTMLElement>(threshold = 4) {
 
 /* -------------------------------------------------------- navigation bar --- */
 
-export type NavTabId = 'home' | 'history' | 'schedule' | 'settings';
+export type NavTabId = 'schedule' | 'home' | 'history' | 'settings';
 
+/** 课表是主页（第一个标签、默认选中），记录 / 历史 / 设置排在其后 */
 const TABS: { id: NavTabId; label: string; icon: string }[] = [
-  { id: 'home', label: '首页', icon: 'home' },
-  { id: 'history', label: '历史', icon: 'history' },
   { id: 'schedule', label: '课表', icon: 'calendar_month' },
+  { id: 'home', label: '记录', icon: 'graphic_eq' },
+  { id: 'history', label: '历史', icon: 'history' },
   { id: 'settings', label: '设置', icon: 'settings' },
 ];
 
@@ -73,21 +74,27 @@ export function AppNavBar({ active, onSelect }: { active: NavTabId; onSelect: (t
     if (element && element.activeIndex !== activeIndex) element.activeIndex = activeIndex;
   }, [activeIndex]);
 
+  const bar = (
+    <md-navigation-bar ref={ref} aria-label="主导航">
+      {TABS.map((tab) => (
+        <md-navigation-tab key={tab.id} label={tab.label} onClick={() => onSelect(tab.id)}>
+          <MdIcon slot="inactive-icon" name={tab.icon} />
+          <MdIcon slot="active-icon" name={tab.icon} filled />
+        </md-navigation-tab>
+      ))}
+    </md-navigation-bar>
+  );
+
   return (
     <nav className={['nav-bar', settings.liquidGlass ? 'glass' : ''].join(' ').trim()}>
-      <md-navigation-bar ref={ref} aria-label="主导航">
-        {TABS.map((tab) => (
-          <md-navigation-tab
-            key={tab.id}
-            label={tab.label}
-            onClick={() => onSelect(tab.id)}
-          >
-            <MdIcon slot="inactive-icon" name={tab.icon} />
-            <MdIcon slot="active-icon" name={tab.icon} filled />
-          </md-navigation-tab>
-        ))}
-      </md-navigation-bar>
-    </nav>
+      {/*
+        液态玻璃底边栏。
+        仓库里已安装 liquid-glass-react（GitHub 上的 LiquidGlass 实现），但它的包装层用
+        top/left 50% + translate(-50%,-50%) 给子元素定位，套在全宽 md-navigation-bar 上会把
+        导航条推到屏幕左侧（实测 x = -206）并让标签点不动。因此当前用等价的实现：
+        backdrop 模糊 + SVG 位移折射（base.css 的 .nav-bar.glass），库的接入等排版问题解决后再切换。
+      */}
+      {bar}    </nav>
   );
 }
 

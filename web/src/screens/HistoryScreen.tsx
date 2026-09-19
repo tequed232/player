@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 历史 (History)
  *
  * "最近三次记录" top app bar with a more_vert overflow menu, a search field
@@ -124,11 +124,15 @@ export default function HistoryScreen() {
   };
 
   const selectTab = (tab: 'home' | 'history' | 'schedule' | 'settings') => {
-    if (tab === 'home') {
-      nav.popTo('home');
+    // 课表是主页：点它回到栈底的课表页；其余标签正常入栈
+    if (tab === 'schedule') {
+      nav.popTo('schedule');
       return;
     }
-    if (tab === 'history') return;
+    if (tab === 'home') {
+      nav.push('home', {}, 'slide');
+      return;
+    }
     nav.push(tab, {}, 'slide');
   };
 

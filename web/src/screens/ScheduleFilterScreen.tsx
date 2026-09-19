@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 筛选 (schedule filter)
  *
  * Tabs: 老师 / 课程 / 地点 / 时间. Search across the embedded schedule, list the hits
@@ -6,13 +6,13 @@
  * chosen course for a few seconds (per the design note). The 地点 tab shows the map
  * panel that hands the address over to the default map app.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SectionHeader, TopAppBar } from '../components/layout';
-import { MdIcon, MdIconButton, MdMenu, MdTabs, MdTextField, type MenuAction } from '../components/md';
+import { MdIcon, MdIconButton, MdMenu, MdSwitch, MdTextField, type MenuAction } from '../components/md';
+import { ExpandableSheet } from '../components/overlays';
 import { MapChooserDialog, highlightKeyFor } from '../components/schedule';
 import { useAppState } from '../state/AppState';
 import { useNav } from '../nav/navigation';
-import { useSpeechRecognition } from '../lib/speech';
 import {
   WEEKDAY_LONG,
   formatAddress,
@@ -35,32 +35,56 @@ export default function ScheduleFilterScreen() {
   const nav = useNav();
   const { schedule, settings, updateSettings, setScheduleHighlight, showSnackbar } = useAppState();
 
-  const [tabIndex, setTabIndex] = useState(0);
-  const [query, setQuery] = useState('');
+  /** 老师 / 课程 / 地点 / 时间四个条件合并在一个面板里 */
+  const [teacher, setTeacher] = useState('');
+  const [courseQuery, setCourseQuery] = useState('');
+  const [place, setPlace] = useState('');
+  const [timeEnabled, setTimeEnabled] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  /** ExpandableSheet 需要源元素做展开动画 */
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
   const [date, setDate] = useState(() => toISODate(new Date()));
   const [selected, setSelected] = useState<SearchHit | null>(null);
   const [mapChooser, setMapChooser] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
-  const speech = useSpeechRecognition({
-    intensity: settings.speechIntensity,
-    onFinal: (text) => setQuery((value) => `${value}${value ? ' ' : ''}${text.trim()}`),
-    onError: (message) => showSnackbar({ message, duration: 5000 }),
-  });
+  const hitKey = (hit: SearchHit) => `${hit.course.name}|${hit.dayIndex}|${hit.period.period}`;
+
+  const activeCount = [teacher, courseQuery, place, timeEnabled ? 'time' : ''].filter(Boolean).length;
 
   const hits = useMemo(() => {
-    const field = FIELDS[tabIndex];
-    const all = searchSchedule(schedule, tabIndex === 3 ? '' : query, field);
-    if (tabIndex !== 3) return all;
-    const index = weekdayIndex(parseISODate(date));
-    return all.filter((hit) => hit.dayIndex === index);
-  }, [schedule, query, tabIndex, date]);
+    const lists: SearchHit[][] = [];
+    if (teacher.trim()) lists.push(searchSchedule(schedule, teacher, 'teacher'));
+    if (courseQuery.trim()) lists.push(searchSchedule(schedule, courseQuery, 'course'));
+    if (place.trim()) lists.push(searchSchedule(schedule, place, 'place'));
+    let base = lists.length ? lists[0] : searchSchedule(schedule, '', 'course');
+    for (const list of lists.slice(1)) {
+      const keys = new Set(list.map(hitKey));
+      base = base.filter((hit) => keys.has(hitKey(hit)));
+    }
+    if (timeEnabled) {
+      const index = weekdayIndex(parseISODate(date));
+      base = base.filter((hit) => hit.dayIndex === index);
+    }
+    return base;
+  }, [schedule, teacher, courseQuery, place, timeEnabled, date]);
 
-  useEffect(() => {
-    speech.stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabIndex]);
+  const filterSummary = [
+    teacher.trim() ? `老师 ${teacher.trim()}` : '',
+    courseQuery.trim() ? `课程 ${courseQuery.trim()}` : '',
+    place.trim() ? `地点 ${place.trim()}` : '',
+    timeEnabled ? `时间 ${date} ${WEEKDAY_LONG[weekdayIndex(parseISODate(date))]}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const clearFilters = () => {
+    setTeacher('');
+    setCourseQuery('');
+    setPlace('');
+    setTimeEnabled(false);
+  };
 
   const openHit = (hit: SearchHit) => {
     const termStart = settings.termStart || schedule.termStart;
@@ -91,7 +115,7 @@ export default function ScheduleFilterScreen() {
       label: '清空筛选条件',
       icon: 'filter_list_off',
       onSelect: () => {
-        setQuery('');
+        clearFilters();
         setMenuOpen(false);
       },
     },
@@ -125,55 +149,23 @@ export default function ScheduleFilterScreen() {
         />
 
         <div className="screen-content">
-          <MdTabs tabs={[...TABS]} activeIndex={tabIndex} onChange={setTabIndex} />
+          {/* 把原来的分类标签 + 搜索栏合并成一个按钮，点开后在同一个面板里填老师/课程/地点/时间 */}
+          <button type="button" className="filter-button" ref={filterButtonRef} onClick={() => setSheetOpen(true)}>
+            <MdIcon name="filter_list" size={22} />
+            <span className="col flex-1" style={{ gap: 2, textAlign: 'left' }}>
+              <span className="md-title-small-emphasized">筛选条件</span>
+              <span className="md-body-small muted">{filterSummary || '老师 / 课程 / 地点 / 时间 一起设置'}</span>
+            </span>
+            {activeCount ? <span className="chip md-label-large">{activeCount}</span> : null}
+            <MdIcon name="chevron_right" size={22} />
+          </button>
 
-          {tabIndex === 3 ? (
-            <div className="col gap-8 mt-12">
-              <div className="md-title-small-emphasized">按日期筛选</div>
-              <input
-                type="date"
-                value={date}
-                onChange={(event) => setDate(event.target.value)}
-                style={{
-                  height: 56,
-                  borderRadius: 16,
-                  border: '1px solid var(--md-sys-color-outline)',
-                  background: 'var(--md-sys-color-surface)',
-                  color: 'var(--md-sys-color-on-surface)',
-                  padding: '0 16px',
-                  fontFamily: 'var(--md-ref-typeface-brand)',
-                  fontSize: 16,
-                }}
-              />
-              <div className="md-body-small muted">
-                {date} 是{WEEKDAY_LONG[weekdayIndex(parseISODate(date))]}，下面列出当天全部课程。
-              </div>
-            </div>
-          ) : (
-            <div className="mt-12">
-              <MdTextField
-                label={`搜索${TABS[tabIndex]}`}
-                value={query}
-                onValueChange={setQuery}
-                placeholder={tabIndex === 0 ? '教师姓名' : tabIndex === 1 ? '课程名称' : '上课地点'}
-                leadingIcon={<MdIcon name="search" />}
-                trailingIcon={
-                  <MdIconButton
-                    icon={speech.listening ? 'stop_circle' : 'mic'}
-                    label={speech.listening ? '停止语音输入' : '语音输入搜索词'}
-                    onClick={() => speech.toggle()}
-                  />
-                }
-              />
-            </div>
-          )}
-
-          {tabIndex === 2 && selected ? (
+          {selected && selected.course.room ? (
             <div className="mt-12">
               <div className="map-preview">
                 <div className="row gap-8">
                   <MdIcon name="map" size={20} />
-                  <span className="md-title-small-emphasized flex-1">{selected.course.room || '未填写地点'}</span>
+                  <span className="md-title-small-emphasized flex-1">{selected.course.room}</span>
                 </div>
                 <div className="md-body-small">
                   地图面板仅用于把所选地点交给第三方地图应用继续筛选地址，不内嵌地图数据。
@@ -192,7 +184,13 @@ export default function ScheduleFilterScreen() {
             <SectionHeader
               icon="list_alt"
               title={`结果 ${hits.length} 条`}
-              trailing={<span className="md-label-medium muted">{TABS[tabIndex]}</span>}
+              trailing={
+                activeCount ? (
+                  <md-text-button onClick={clearFilters}>清空</md-text-button>
+                ) : (
+                  <span className="md-label-medium muted">全部</span>
+                )
+              }
             />
             {hits.length ? (
               <>
@@ -241,6 +239,59 @@ export default function ScheduleFilterScreen() {
       </div>
 
       <MdMenu anchor={menuAnchor} open={menuOpen} actions={menuActions} onClose={() => setMenuOpen(false)} />
+
+      {/* 老师 / 课程 / 地点 / 时间：一个面板全部搞定 */}
+      <ExpandableSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        sourceRef={filterButtonRef}
+        icon="filter_list"
+        title="筛选条件"
+        headerActions={
+          <>
+            <md-text-button onClick={clearFilters}>清空</md-text-button>
+            <md-filled-tonal-button onClick={() => setSheetOpen(false)}>查看结果</md-filled-tonal-button>
+          </>
+        }
+      >
+        <div className="col gap-16">
+          <div>
+            <SectionHeader icon="person" title="老师" />
+            <MdTextField label="教师姓名" value={teacher} onValueChange={setTeacher} placeholder="例如 韩堃" />
+          </div>
+          <div>
+            <SectionHeader icon="menu_book" title="课程" />
+            <MdTextField label="课程名称" value={courseQuery} onValueChange={setCourseQuery} placeholder="例如 智慧财经素养" />
+          </div>
+          <div>
+            <SectionHeader icon="place" title="地点" />
+            <MdTextField label="上课地点" value={place} onValueChange={setPlace} placeholder="例如 16-203 / 教学楼" />
+          </div>
+          <div>
+            <SectionHeader icon="event" title="时间" />
+            <div className="row gap-12" style={{ alignItems: 'center' }}>
+              <MdSwitch selected={timeEnabled} onSelectedChange={setTimeEnabled} ariaLabel="按日期筛选开关" />
+              <span className="md-body-medium flex-1">只看某一天</span>
+            </div>
+            {timeEnabled ? (
+              <div className="col gap-8 mt-8">
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(event) => setDate(event.target.value)}
+                  className="filter-date"
+                />
+                <div className="md-body-small muted">
+                  {date} 是{WEEKDAY_LONG[weekdayIndex(parseISODate(date))]}
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div className="md-body-small muted">
+            四个条件会同时生效（交集）；结果里点课程可以跳回课表对应周次，点地点可以打开地图。
+          </div>
+        </div>
+      </ExpandableSheet>
 
       <MapChooserDialog
         open={Boolean(mapChooser)}

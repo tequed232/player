@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 关于 (About) - 多分课表
  *
  * 应用信息、Material 3 Expressive 设计说明、数据存储说明、美术资源致谢与
@@ -107,6 +107,9 @@ export default function AboutScreen() {
                 <span className="md-title-small-emphasized flex-1">{credit.label}</span>
               </div>
               <div className="md-body-small muted mt-4">{credit.note}</div>
+              {credit.url.includes('18112887') ? (
+                <img className="about-art" src="./art/college-art.jpg" alt="广东财贸职业学院 官方教材呈现（美术资源）" />
+              ) : null}
               <div className="row gap-8 mt-8" style={{ flexWrap: 'wrap' }}>
                 <md-filled-tonal-button
                   className="btn-s"
