@@ -116,7 +116,7 @@ dist/
 ```
 
 结果：**全部通过，0 个 console 错误、0 个 page error**；截图见 `screenshots/`（`report.json` 内含配色、尺寸与令牌核对数据）。
-线上部署（GitHub Pages）用同一套脚本跑过一遍，同样是 49 步全通过、0 错误。
+线上部署（GitHub Pages）用同一套脚本跑过一遍，同样是 49 步全通过、0 错误，截图与报告在 `screenshots-live/`。
 
 ## 与草图的三处有意偏差
 
