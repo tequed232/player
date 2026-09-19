@@ -33,6 +33,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -72,7 +73,23 @@ private fun M3ExpressiveApp() {
     var status by remember { mutableStateOf("准备就绪") }
     var sttApi by remember { mutableStateOf("") }
     var i2tApi by remember { mutableStateOf("") }
+    // 快速开始：点击语音后显示进度条并发布实时通知（ColorOS 流体云）
+    var listening by remember { mutableStateOf(false) }
+    var recordSeconds by remember { mutableStateOf(0) }
     val history = remember { mutableStateListOf<HistoryRecord>() }
+
+    androidx.compose.runtime.LaunchedEffect(listening) {
+        recordSeconds = 0
+        while (listening) {
+            kotlinx.coroutines.delay(1000)
+            recordSeconds += 1
+            LiveUpdates.update(
+                context,
+                "正在录音 · 四分",
+                "%02d:%02d · 实时语音转文字进行中".format(recordSeconds / 60, recordSeconds % 60),
+            )
+        }
+    }
 
     // Android 13+ 通知权限：Live Updates / 流体云 需要它
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -87,6 +104,7 @@ private fun M3ExpressiveApp() {
     }
 
     val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        listening = false
         val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
         if (!text.isNullOrBlank()) {
             history.add(0, HistoryRecord("语音转文字", text))
@@ -101,7 +119,13 @@ private fun M3ExpressiveApp() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            startSpeechRecognition(context, speechLauncher::launch) { status = it }
+            listening = true
+            LiveUpdates.update(context, "正在录音 · 四分", "00:00 · 实时语音转文字进行中")
+            startSpeechRecognition(context, speechLauncher::launch) {
+                listening = false
+                status = it
+                LiveUpdates.clear(context)
+            }
         } else {
             status = "需要麦克风权限才能使用语音识别"
         }
@@ -137,10 +161,15 @@ private fun M3ExpressiveApp() {
     }) { padding ->
         Surface(Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
             when (tab) {
-                AppTab.HOME -> HomeScreen(status, {
+                AppTab.HOME -> HomeScreen(status, listening, recordSeconds, {
                     if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                        LiveUpdates.update(context, "语音记录", "正在聆听，请说话…")
-                        startSpeechRecognition(context, speechLauncher::launch) { status = it }
+                        listening = true
+                        LiveUpdates.update(context, "正在录音 · 四分", "00:00 · 实时语音转文字进行中")
+                        startSpeechRecognition(context, speechLauncher::launch) {
+                            listening = false
+                            status = it
+                            LiveUpdates.clear(context)
+                        }
                     } else {
                         microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
@@ -179,7 +208,14 @@ private fun startSpeechRecognition(
 }
 
 @Composable
-private fun HomeScreen(status: String, onSpeech: () -> Unit, onCamera: () -> Unit, onSettings: () -> Unit) {
+private fun HomeScreen(
+    status: String,
+    listening: Boolean,
+    recordSeconds: Int,
+    onSpeech: () -> Unit,
+    onCamera: () -> Unit,
+    onSettings: () -> Unit,
+) {
     Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("M3 Expressive", style = MaterialTheme.typography.headlineMedium)
         Text("多模态记录工作台", style = MaterialTheme.typography.titleMedium)
@@ -188,8 +224,27 @@ private fun HomeScreen(status: String, onSpeech: () -> Unit, onCamera: () -> Uni
                 Text("快速开始", style = MaterialTheme.typography.titleLarge)
                 Text("使用语音或相机创建一条新的记录。", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = onSpeech, modifier = Modifier.weight(1f)) { Icon(Icons.Outlined.Mic, null); Spacer(Modifier.size(8.dp)); Text("语音") }
+                    Button(onClick = onSpeech, enabled = !listening, modifier = Modifier.weight(1f)) { Icon(Icons.Outlined.Mic, null); Spacer(Modifier.size(8.dp)); Text("语音") }
                     Button(onClick = onCamera, modifier = Modifier.weight(1f)) { Icon(Icons.Outlined.CameraAlt, null); Spacer(Modifier.size(8.dp)); Text("拍照") }
+                }
+
+                // 点击语音后的进度条 + 计时，同时发布 Live Updates（ColorOS 流体云）
+                if (listening) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("正在录音 · 实时语音转文字", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                            Text(
+                                "%02d:%02d".format(recordSeconds / 60, recordSeconds % 60),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                        Text(
+                            "状态卡片已发送到通知 / 流体云",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }

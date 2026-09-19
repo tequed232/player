@@ -164,6 +164,10 @@
         "#3A4B3F"
       ]
     },
+    "trialDialog": "录音试用语音转文字API\n将录制最长 15 秒的语音并直接调用：\nhttps://example.com/v1/audio/transcriptions\n准备就绪\n00:00\n提示：若接口未返回内容，请确认地址支持 multipart/form-data、字段名为 file，并已填写密钥。\n关闭\n\n开始录音",
+    "recordingProgress": 1,
+    "recordingText": "正在录音 · 实时语音转文字\n00:01\n",
+    "recordingStopped": true,
     "camera": {
       "w": 1440,
       "h": 1080,
@@ -171,7 +175,7 @@
     },
     "persisted": [
       {
-        "title": "照片记录 · 2026/09/19 20:31",
+        "title": "照片记录 · 2026/09/19 21:26",
         "images": 1
       }
     ],
@@ -237,32 +241,38 @@
     "schedule": {
       "board": {
         "w": 412,
-        "h": 406
+        "h": 462
       },
+      "pageCount": 2,
+      "pageSize": [
+        4,
+        4
+      ],
+      "rows": 4,
+      "rowLabels": [
+        "上午08:30",
+        "中午12:10",
+        "下午14:10",
+        "晚上18:10"
+      ],
       "dayHeads": [
+        "周一9月14日",
+        "周二9月15日",
         "周三9月16日",
-        "周四9月17日",
-        "周五9月18日",
-        "周六9月19日"
+        "周四9月17日"
       ],
-      "chips": [
-        "国产操作系统管理",
-        "体育与健康（一）",
-        "国产操作系统管理"
-      ],
-      "chipCount": 3,
-      "axisCells": 7,
-      "sections": [
-        "上午",
-        "中午",
-        "下午",
-        "晚上"
-      ],
+      "chipCount": 8,
+      "activePage": 0,
+      "monthLabel": "2026年9月 · 9月17日 周四",
       "timelineItems": 1
     },
-    "courseDetail": "\n国产操作系统管理\n\n\n周五 · 第5-6节 · 14:10-15:35\n\n刘桂颜\n\n2026信创03班\n\n3;6-9;12-20 周\n\n3-603\n\n导航",
-    "windowBefore": "周三 9月16日",
-    "windowAfter": "周四 9月17日",
+    "monthDialog": "2026年8月\n第 1–1 周\n2026年9月\n第 1–5 周\n2026年10月\n第 5–9 周\n2026年11月\n第 9–14 周\n2026年12月\n第 14–18 周\n2027年1月\n第 18–21 周",
+    "monthAfterPick": "\n2026年9月 · 9月1日 周二\n",
+    "courseDetail": "\n人工智能通识课\n\n\n周日 · 第3-4节 · 10:15-11:40\n\n赖燕璇\n\n2026信创03班\n\n3-3 周\n\n共 1 次课 · 9月 – 9月\n9月20日 周日\n\n3-402\n\n导航",
+    "pageBefore": 1,
+    "pageAfter": 0,
+    "collapsed": 1,
+    "collapseLabel": "\n第 3 周 · 周六 9月19日 · 0 门课\n展开课表\n",
     "filterResults": 24,
     "highlighted": 1,
     "importSheet": "\n课表数据\n\n当前课表：内置（来自 学生课表.doc） · 罗瑞谦 · 2026-2027-1 · 7 节次 · 24 门课\n\n选择文件\n\n恢复内置\n支持 .doc/.rtf（教务系统导出）、.html（表格另存为）、.csv/.txt（复制的课表文本）。导入后保存在本机浏览器。\n解析并导入文本\n学期开始日期（第 1 周周一）\n保存日期\n用于计算当前教学周，进而过滤每周实际开设的课程。"
@@ -281,8 +291,13 @@
     "shot:04-settings",
     "ok:api edit screen",
     "shot:05-api-edit",
+    "ok:saving the speech API opens the recording trial",
+    "shot:29-api-trial",
+    "ok:close the recording trial dialog",
     "ok:api back",
     "ok:home tab",
+    "shot:30-voice-progress",
+    "ok:quick start voice shows a progress bar",
     "ok:open camera",
     "shot:06-camera",
     "ok:shutter creates a record",
@@ -319,13 +334,19 @@
     "ok:slider value survives reload",
     "ok:history overflow menu opens",
     "shot:20-history-menu",
-    "ok:schedule tab shows the four day table",
+    "ok:schedule tab shows the 4x4 paged board",
     "shot:21-schedule",
-    "ok:course detail opens from the table",
+    "shot:27-schedule-months",
+    "ok:month / date picker recognises the schedule months",
+    "ok:back to today after the month jump",
+    "ok:course detail opens from the board",
     "shot:22-schedule-course-detail",
     "ok:close course detail",
-    "ok:dragging the table shifts the four day window",
-    "shot:23-schedule-dragged",
+    "ok:dragging the board pages through the week",
+    "shot:23-schedule-paged",
+    "ok:swiping down collapses the board",
+    "shot:28-schedule-collapsed",
+    "ok:tapping the summary expands the board again",
     "ok:schedule filter screen",
     "shot:24-schedule-filter",
     "ok:filter result highlights the course",
