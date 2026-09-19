@@ -123,13 +123,13 @@ export default function HistoryScreen() {
     }
   };
 
-  const selectTab = (tab: 'home' | 'history' | 'settings') => {
+  const selectTab = (tab: 'home' | 'history' | 'schedule' | 'settings') => {
     if (tab === 'home') {
       nav.popTo('home');
       return;
     }
     if (tab === 'history') return;
-    nav.push('settings', {}, 'slide');
+    nav.push(tab, {}, 'slide');
   };
 
   const confirmPending = async () => {

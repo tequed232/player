@@ -50,11 +50,12 @@ export function useScrolled<T extends HTMLElement>(threshold = 4) {
 
 /* -------------------------------------------------------- navigation bar --- */
 
-export type NavTabId = 'home' | 'history' | 'settings';
+export type NavTabId = 'home' | 'history' | 'schedule' | 'settings';
 
 const TABS: { id: NavTabId; label: string; icon: string }[] = [
   { id: 'home', label: '首页', icon: 'home' },
   { id: 'history', label: '历史', icon: 'history' },
+  { id: 'schedule', label: '课表', icon: 'calendar_month' },
   { id: 'settings', label: '设置', icon: 'settings' },
 ];
 

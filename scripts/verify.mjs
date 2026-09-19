@@ -71,6 +71,8 @@ const waitTop = async (selector, index = 0) => {
 
 const shot = async (name) => {
   const file = path.join(OUT_DIR, `${name}.png`);
+  // park the pointer in a corner so hover state layers do not show up in screenshots
+  await page.mouse.move(3, 3).catch(() => {});
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       await page.screenshot({ path: file });
@@ -212,7 +214,7 @@ try {
   await shot('03-history-empty');
 
   await step('settings tab', async () => {
-    await clickTop('md-navigation-tab', 2);
+    await clickTop('md-navigation-tab', 3);
     await page.waitForTimeout(1000);
   });
   await shot('04-settings');
@@ -248,7 +250,7 @@ try {
   });
 
   await step('api edit screen', async () => {
-    await clickTop('md-list-item', 1);
+    await clickTop('md-list-item', 2);
     await page.waitForTimeout(1000);
   });
   await shot('05-api-edit');
@@ -354,7 +356,7 @@ try {
   );
 
   await step('dark mode toggle', async () => {
-    await clickTop('md-navigation-tab', 2);
+    await clickTop('md-navigation-tab', 3);
     await page.waitForTimeout(900);
     await clickTop('md-switch');
     await page.waitForTimeout(1200);
@@ -423,7 +425,7 @@ try {
 
   /* ------------------------------------------------ slider + persistence */
   await step('slider drag saves and persists', async () => {
-    await clickTop('md-navigation-tab', 2);
+    await clickTop('md-navigation-tab', 3);
     await page.waitForTimeout(1000);
     const slider = top().locator('md-slider').nth(0);
     const box = await slider.boundingBox();
@@ -433,16 +435,16 @@ try {
     await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2, { steps: 12 });
     await page.mouse.up();
     await page.waitForTimeout(900);
-    extra.sliderSupporting = await top().locator('md-list-item').nth(2).innerText();
+    extra.sliderSupporting = await top().locator('md-list-item').nth(3).innerText();
   });
   await shot('19-slider-drag');
 
   await step('slider value survives reload', async () => {
     await page.reload({ waitUntil: 'load' });
     await page.waitForTimeout(1600);
-    await clickTop('md-navigation-tab', 2);
+    await clickTop('md-navigation-tab', 3);
     await page.waitForTimeout(1000);
-    extra.sliderSupportingAfterReload = await top().locator('md-list-item').nth(2).innerText();
+    extra.sliderSupportingAfterReload = await top().locator('md-list-item').nth(3).innerText();
     await page.waitForTimeout(200);
   });
 
@@ -470,6 +472,86 @@ try {
     extra.menuItems = await page.locator('md-menu md-menu-item').first().innerText();
   });
   await shot('20-history-menu');
+
+  /* ------------------------------------------------------------- 课表 screen */
+  await step('schedule tab shows the four day table', async () => {
+    await page.keyboard.press('Escape');
+    await clickTop('md-navigation-tab', 2);
+    await waitTop('.sched-grid');
+    await page.waitForTimeout(900);
+    extra.schedule = await page.evaluate(() => {
+      const board = document.querySelector('.sched-board');
+      const dayHeads = Array.from(document.querySelectorAll('.sched-day-head')).map((element) => element.textContent);
+      const chips = Array.from(document.querySelectorAll('.course-chip')).slice(0, 6).map((element) => element.textContent);
+      const rect = board ? board.getBoundingClientRect() : null;
+      return {
+        board: rect ? { w: Math.round(rect.width), h: Math.round(rect.height) } : null,
+        dayHeads,
+        chips,
+        chipCount: document.querySelectorAll('.course-chip').length,
+        axisCells: document.querySelectorAll('.sched-axis-cell').length,
+        sections: Array.from(document.querySelectorAll('.sched-section')).map((element) => element.textContent.trim()),
+        timelineItems: document.querySelectorAll('.timeline-item').length,
+      };
+    });
+    if (extra.schedule.dayHeads.length !== 4) throw new Error(`expected 4 day columns, got ${extra.schedule.dayHeads.length}`);
+    if (!extra.schedule.chipCount) throw new Error('no courses rendered in the four day table');
+  });
+  await shot('21-schedule');
+
+  await step('course detail opens from the table', async () => {
+    await clickTop('.course-chip', 0);
+    await waitTop('.sheet-panel');
+    await page.waitForTimeout(700);
+    extra.courseDetail = await top().locator('.sheet-panel').innerText();
+  });
+  await shot('22-schedule-course-detail');
+
+  await step('close course detail', async () => {
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(700);
+  });
+
+  await step('dragging the table shifts the four day window', async () => {
+    const board = top().locator('.sched-board');
+    const box = await board.boundingBox();
+    if (!box) throw new Error('board not found');
+    const before = await top().locator('.sched-day-head').first().innerText();
+    await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.5, { steps: 10 });
+    await page.mouse.up();
+    await page.waitForTimeout(800);
+    const after = await top().locator('.sched-day-head').first().innerText();
+    extra.windowBefore = before.replace(/\s+/g, ' ');
+    extra.windowAfter = after.replace(/\s+/g, ' ');
+    if (before === after) throw new Error('the four day window did not shift');
+  });
+  await shot('23-schedule-dragged');
+
+  await step('schedule filter screen', async () => {
+    await clickTop('.app-bar md-icon-button', 0);
+    await waitTop('md-tabs');
+    await page.waitForTimeout(800);
+    extra.filterResults = await top().locator('.filter-row').count();
+  });
+  await shot('24-schedule-filter');
+
+  await step('filter result highlights the course', async () => {
+    await clickTop('.filter-row', 0);
+    await waitTop('.sched-grid');
+    await page.waitForTimeout(900);
+    extra.highlighted = await top().locator('.course-chip.highlight').count();
+  });
+  await shot('25-schedule-highlight');
+
+  await step('schedule import sheet', async () => {
+    await clickTop('.app-bar md-icon-button', 2);
+    await waitTop('.sheet-panel');
+    await page.waitForTimeout(700);
+    extra.importSheet = (await top().locator('.sheet-panel').innerText()).slice(0, 220);
+  });
+  await shot('26-schedule-import');
 } catch (error) {
   steps.push(`FATAL: ${error instanceof Error ? error.message : error}`);
 } finally {

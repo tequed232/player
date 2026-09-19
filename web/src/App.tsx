@@ -8,6 +8,8 @@ import SettingsScreen from './screens/SettingsScreen';
 import RecordDetailScreen from './screens/RecordDetailScreen';
 import ApiEditScreen from './screens/ApiEditScreen';
 import BlankScreen from './screens/BlankScreen';
+import ScheduleScreen from './screens/ScheduleScreen';
+import ScheduleFilterScreen from './screens/ScheduleFilterScreen';
 
 const SCREENS = {
   home: HomeScreen,
@@ -17,10 +19,12 @@ const SCREENS = {
   record: RecordDetailScreen,
   apiEdit: ApiEditScreen,
   blank: BlankScreen,
+  schedule: ScheduleScreen,
+  scheduleFilter: ScheduleFilterScreen,
 };
 
 /** Screens that own a bottom navigation bar keep the snackbar 16dp above it. */
-const WITH_NAV_BAR: RouteName[] = ['home', 'camera', 'history', 'settings'];
+const WITH_NAV_BAR: RouteName[] = ['home', 'camera', 'history', 'settings', 'schedule'];
 
 export default function App() {
   const { current } = useNav();

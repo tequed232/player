@@ -405,3 +405,41 @@ export function useDismissable<T extends HTMLElement>(
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [active]);
 }
+
+/** Material Web tabs (`md-tabs` + `md-primary-tab`). */
+export function MdTabs({
+  tabs,
+  activeIndex,
+  onChange,
+  className,
+}: {
+  tabs: string[];
+  activeIndex: number;
+  onChange: (index: number) => void;
+  className?: string;
+}) {
+  const ref = useRef<HTMLElement & { activeTabIndex: number }>(null);
+  const changeHandler = useRef(onChange);
+  changeHandler.current = onChange;
+
+  useEffect(() => {
+    const element = ref.current;
+    if (element && element.activeTabIndex !== activeIndex) element.activeTabIndex = activeIndex;
+  }, [activeIndex]);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return undefined;
+    const onChanged = () => changeHandler.current(Number(element.activeTabIndex));
+    element.addEventListener('change', onChanged);
+    return () => element.removeEventListener('change', onChanged);
+  }, []);
+
+  return (
+    <md-tabs ref={ref} className={className}>
+      {tabs.map((tab) => (
+        <md-primary-tab key={tab}>{tab}</md-primary-tab>
+      ))}
+    </md-tabs>
+  );
+}

@@ -1,24 +1,28 @@
 /**
  * 设置 (Settings)
  *
- * A 5 item list group (M3 Expressive connected list: 3dp gaps, 28dp outer corners,
+ * A 6 item list group (M3 Expressive connected list: 3dp gaps, 28dp outer corners,
  * 8dp inner corners) with the switch and the two Expressive sliders stacked on top
- * of the group as the spec requires, plus a snackbar with 撤销 and the shared nav bar.
+ * of the group as the spec requires, plus the default map chooser, a snackbar with
+ * 撤销 and the shared nav bar.
  */
 import { useEffect, useRef, useState } from 'react';
 import { AppNavBar, SectionHeader, TopAppBar } from '../components/layout';
 import { MdIcon, MdIconButton, MdSlider, MdSwitch } from '../components/md';
+import { MapChooserDialog } from '../components/schedule';
 import { useAppState } from '../state/AppState';
 import { useNav } from '../nav/navigation';
+import { mapProviderById } from '../lib/schedule';
 
 const GITHUB_URL = 'https://github.com/tequed232/player';
 
 export default function SettingsScreen() {
   const nav = useNav();
-  const { settings, updateSettings, records, seed, dynamicColor } = useAppState();
+  const { settings, updateSettings, records, seed, dynamicColor, schedule } = useAppState();
 
   const [speechValue, setSpeechValue] = useState(settings.speechIntensity);
   const [cameraValue, setCameraValue] = useState(settings.cameraSharpness);
+  const [mapDialogOpen, setMapDialogOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // keep the sliders in sync when settings are changed elsewhere (e.g. 撤销)
@@ -26,6 +30,7 @@ export default function SettingsScreen() {
   useEffect(() => setCameraValue(settings.cameraSharpness), [settings.cameraSharpness]);
 
   const apiConfigured = Boolean(settings.sttApiUrl.trim() || settings.visionApiUrl.trim());
+  const mapProvider = mapProviderById(settings.mapProvider);
 
   const toggleDarkMode = () => {
     updateSettings(
@@ -34,13 +39,13 @@ export default function SettingsScreen() {
     );
   };
 
-  const selectTab = (tab: 'home' | 'history' | 'settings') => {
+  const selectTab = (tab: 'home' | 'history' | 'schedule' | 'settings') => {
     if (tab === 'home') {
       nav.popTo('home');
       return;
     }
     if (tab === 'settings') return;
-    nav.push('history', {}, 'slide');
+    nav.push(tab, {}, 'slide');
   };
 
   return (
@@ -61,7 +66,19 @@ export default function SettingsScreen() {
               </div>
             </md-list-item>
 
-            {/* ------------------------------------------------ 2 API编辑 */}
+            {/* -------------------------------------- 2 默认跳转地图 */}
+            <md-list-item type="button" className="rounded-middle" onClick={() => setMapDialogOpen(true)}>
+              <div slot="start" className="list-icon-badge">
+                <MdIcon name="map" />
+              </div>
+              <div slot="headline">默认跳转地图</div>
+              <div slot="supporting-text">
+                {mapProvider ? `${mapProvider.label} · 课表点击地址直接启动导航` : '未设置，课表点击地址时先询问'}
+              </div>
+              <MdIcon slot="end" name="chevron_right" />
+            </md-list-item>
+
+            {/* ------------------------------------------------ 3 API编辑 */}
             <md-list-item
               type="button"
               className="rounded-middle"
@@ -77,7 +94,7 @@ export default function SettingsScreen() {
               <MdIcon slot="end" name="chevron_right" />
             </md-list-item>
 
-            {/* -------------------------------------- 3 语音输入强度调整 */}
+            {/* -------------------------------------- 4 语音输入强度调整 */}
             <md-list-item type="button" className="rounded-middle">
               <div slot="start" className="list-icon-badge">
                 <MdIcon name="mic" />
@@ -86,7 +103,7 @@ export default function SettingsScreen() {
               <div slot="supporting-text">识别置信度门限：{Math.round(speechValue)}%</div>
             </md-list-item>
 
-            {/* -------------------------------------- 4 相机清晰度调整 */}
+            {/* -------------------------------------- 5 相机清晰度调整 */}
             <md-list-item type="button" className="rounded-middle">
               <div slot="start" className="list-icon-badge">
                 <MdIcon name="camera_video" />
@@ -95,7 +112,7 @@ export default function SettingsScreen() {
               <div slot="supporting-text">拍摄分辨率与画质：{Math.round(cameraValue)}%</div>
             </md-list-item>
 
-            {/* ------------------------------------------------ 5 关于本软件 */}
+            {/* ------------------------------------------------ 6 关于本软件 */}
             <md-list-item
               type="button"
               className="rounded-outer-bottom"
@@ -118,7 +135,7 @@ export default function SettingsScreen() {
               />
             </div>
 
-            <div className="group-overlay" style={{ top: 162, width: 168 }}>
+            <div className="group-overlay" style={{ top: 237, width: 168 }}>
               <MdSlider
                 className="expressive-slider flex-1"
                 value={speechValue}
@@ -135,7 +152,7 @@ export default function SettingsScreen() {
               <span className="overlay-value md-label-medium">{Math.round(speechValue)}%</span>
             </div>
 
-            <div className="group-overlay" style={{ top: 237, width: 168 }}>
+            <div className="group-overlay" style={{ top: 312, width: 168 }}>
               <MdSlider
                 className="expressive-slider flex-1"
                 value={cameraValue}
@@ -165,6 +182,12 @@ export default function SettingsScreen() {
                 </span>
               </div>
               <div className="row gap-8">
+                <MdIcon name="calendar_month" size={18} />
+                <span className="md-body-medium flex-1">
+                  课表已内嵌（{schedule.term} · {schedule.owner || '未署名'}），可在课表页导入 DOC/HTML 或粘贴文本更新。
+                </span>
+              </div>
+              <div className="row gap-8">
                 <MdIcon name="storage" size={18} />
                 <span className="md-body-medium flex-1">
                   全部数据保存在本机浏览器（IndexedDB），当前共有 {records.length} 条记录。
@@ -182,6 +205,16 @@ export default function SettingsScreen() {
 
         <AppNavBar active="settings" onSelect={selectTab} />
       </div>
+
+      <MapChooserDialog
+        open={mapDialogOpen}
+        address="默认地图设置"
+        onCancel={() => setMapDialogOpen(false)}
+        onConfirm={(providerId) => {
+          setMapDialogOpen(false);
+          updateSettings({ mapProvider: providerId }, { message: '已保存默认地图' });
+        }}
+      />
     </>
   );
 }

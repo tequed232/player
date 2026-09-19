@@ -1,60 +1,58 @@
-# v1.0.2 — Material 3 Expressive 语音图片笔记（Web 生产版本）
+# v1.0.3 — 内嵌课表屏幕 + Android 16 / ColorOS 流体云 构建
 
-本次发布把仓库里原本只在 Android（Compose）实现的 **M3 Expressive 语音图片笔记** 完整实现为可在浏览器运行的 Web 应用，
-并把它部署到 GitHub Pages。
+本次新增 **课表**（四分课表）屏幕：把学校教务系统导出的 `学生课表.doc` 解析后**内嵌进应用**，
+并在 Web 与 Android 两端都提供独立的课表屏幕；Android 端同时升级到 **Android 16 (API 36)**，
+接入 **Android 16 Live Updates / ColorOS 流体云** 实况通知。
 
-## 在线体验
+## 在线体验 / 下载
 
 - **Web 应用（GitHub Pages）**：https://tequed232.github.io/player/
+- **Android APK**：本 Release 附件 `m3-expressive-android-1.0.3.apk`（arm64-v8a，适配天玑 9400 / ColorOS 16）
 
 ## 本次新增
 
-### 完整 Web 应用（新增，生产构建产物）
+### 课表屏幕（Web + Android）
 
-7 个屏幕、412 × 892dp 竖屏、仅浅色模式为目标形态：
+- **自主嵌入**：`scripts/import-schedule.mjs` 解析 `学生课表.doc`（RTF 表格），生成
+  `web/src/data/schedule.ts` 与 `app/.../ScheduleData.kt`，应用启动即自带课表（罗瑞谦 · 2026-2027-1 ·
+  7 节次 × 7 天 · 24 门课），无需每次手动导入。
+- **四日表格**：左侧是按 **上午 / 中午 / 下午 / 晚上** 分段的时间轴，上方**并排展示四天**；
+  在表格上**左右拖动跟手切换日期窗口**（松手回弹），点击某一天选中该日，下方列出当天全部课程。
+- **课程详情**：默认只显示课程名，点击课程弹出详情（授课老师、节次与时间、周次、地点）。
+- **周次**：按学期开始日期计算当前教学周（可调），表格只显示该周实际开设的课程；◀ ▶ 切换周次。
+- **导航**：点击课程地点 → 启动地图应用检索该地址；未设置默认地图时先弹出地图选择列表，
+  可「记住选择」写入设置（Web 端在设置页有「默认跳转地图」项）。
+- **筛选**：顶部搜索图标进入「筛选」屏幕，按 老师 / 课程 / 地点 / 时间 四个标签检索，
+  结果按 课程 · 老师 · 地点 三列排列；点击条目回到课表并**高亮该课程 5 秒**（若该课程不在当前周，
+  自动跳到它开课的那一周并提示）。
+- **导入 / 替换**：课表页右上角「课表数据」面板支持导入 `.doc/.rtf`（教务系统导出）、`.html`（表格另存为）、
+  `.csv/.txt`（粘贴文本），或一键恢复内置课表；导入结果保存在浏览器 IndexedDB。
 
-| 屏幕 | 内容 |
-| --- | --- |
-| 主页 | 实时语音转文字容器（surfaceContainerHigh / 28dp，点击放大为全屏面板）、总结·重点·思维导图容器（tertiaryContainer）、"长按输入文本"描边输入框（叠放在按钮组之上）、"拍照 / 导入图片"相连按钮组（内侧 8dp 圆角）、导航栏 |
-| 摄像 | `getUserMedia` 实时预览（圆角 20dp）、预览左上角"返回"填充按钮、标签输入（历史标签建议）、快门写入记录并调用图片转文字 API |
-| 历史 | "最近三次记录"顶部应用栏 + more_vert 菜单、搜索、记录卡片（查看 / 编辑 / 删除）、空状态 |
-| 设置 | 5 项连接式列表（3dp 间距、28dp 外圆角 / 8dp 内圆角）+ 叠放其上的深色开关与两个 Expressive 滑块（16dp 粗轨道、4×44dp 竖长手柄）、"已保存"消息条 + 撤销 |
-| 记录详情（屏幕 5） | 图片多浏览轮播 → 全屏查看器（左右滑动切换 / 下滑关闭）、文字要点容器 → 可滚动全屏面板、返回 / 编辑 / 删除（确认对话框） |
-| API 修改 | 语音转文字 / 图片转文字 / 问答 API 与密钥、380×380 测试图片占位与真实接口测试、刷新与"删除全部 API"（确认对话框） |
-| 屏幕 7 | 按草图保留的空屏幕 |
+### Android 16 / 天玑 9400 / ColorOS 流体云
 
-### 设计实现
-
-- **动态配色**：能获取用户强调色时用 material-color-utilities 的 `SchemeExpressive`（高对比度）生成全套角色；
-  否则逐值使用题目给定的 Green 备用配色（primary `#00391C`、tertiaryContainer `#1E4D54`、surface `#F5FBF6` …）。
-  UI 只引用 `--md-sys-color-*` 角色，没有写死颜色。
-- **动效**：解析求解 M3 Expressive 物理弹簧（spatial 阻尼比 0.9、effects 1.0），生成 CSS `linear()` 缓动与时长；
-  页面转场（滑入 / 淡入 / 相机缩放弹簧）、面板展开、消息条、涟漪反馈全部使用同一套弹簧。
-- **组件**：一律使用 `@material/web` 标准组件；库里没有的（顶部应用栏、消息条、轮播、全屏查看器、可展开面板）才自行实现。
-- **图标字体**：Material Symbols Rounded 由 5.2 MB 变量字体裁剪为 **77 KB** 子集（保留 FILL/GRAD/opsz/wght 轴）。
-
-### 数据
-
-记录、设置、主页草稿写入 **IndexedDB** 并跨刷新保留；无假数据，无内容时显示空状态；
-语音输入强度控制识别置信度门限、相机清晰度控制拍摄分辨率与 JPEG 画质，均真实生效。
-
-## 验证
-
-`npm run verify`（Playwright + Chromium，412×892 视口，虚拟摄像头）跑通 49 步真实流程：
-主页 → 全屏面板 → 历史 / 设置 / API → 相机实时预览 → 快门生成记录 → 历史卡片 → 记录详情 → 图片查看器 →
-文字面板 → 刷新后记录仍在 → 深色开关 + 撤销 → 删除确认对话框 → 长按提问生成思维导图分支 →
-滑块拖动 + 刷新后保持 81% → 历史 more_vert 菜单。
-
-结果：**全部通过，0 个 console 错误、0 个 page error**。截图见仓库 `screenshots/`。
-
-## 构建产物
-
-- `m3-expressive-web-1.0.2.zip` — Web 生产构建（`dist/`，53 个文件约 1.5 MB，纯静态、相对路径、含本地字体，可离线部署到任意静态服务器）。
-- `app-release.apk` — Android 版（Compose 实现），`arm64-v8a`，debug 签名，可直接安装体验（versionCode 3 / versionName 1.0.2）。
+- `compileSdk = 36`、`targetSdk = 36`（Android 16），`abiFilters = arm64-v8a`（天玑 9400 / MT6991）。
+- **流体云（实况通知）**：语音识别与拍照处理时发布 Android 16 **Live Updates**
+  （`Notification.ProgressStyle` + `setRequestPromotedOngoing(true)`），ColorOS 16 会将其展示为
+  **流体云**卡片；完成时显示 100% 结果并在数秒后自动收起。
+  该 API 仅存在于 Android 16，代码通过反射调用，同一 APK 在旧系统上自动退化为普通进行中通知。
+- 新增 `POST_NOTIFICATIONS` 权限（Android 13+ 运行时申请）、`enableOnBackInvokedCallback`
+  （Android 16 预测式返回）、`windowSoftInputMode=adjustResize`。
+- Android 端导航栏新增 **课表** 标签页，与 Web 端共用同一份课表数据。
 
 ## 构建方式
 
 ```bash
-npm install && npm run build     # Web：生成图标子集 → 校验 → vite build（输出 dist/）
-./gradlew assembleRelease        # Android：输出 app/build/outputs/apk/release/app-release.apk
+# Web：解析课表 -> 生成图标子集 -> 校验 -> vite build
+node scripts/import-schedule.mjs "学生课表.doc"     # 生成 web/src/data/schedule.ts + ScheduleData.kt
+npm install && npm run build                        # 输出 dist/
+
+# Android：输出 app/build/outputs/apk/release/app-release.apk（versionCode 4 / versionName 1.0.3）
+./gradlew assembleRelease
 ```
+
+## 验证
+
+- Web：`npm run verify`（Playwright + Chromium，412×892、虚拟摄像头）共 **57 步**全部通过，
+  0 console 错误、0 page error，截图见 `screenshots/`（含课表、筛选、高亮、导入面板）。
+- Android：`./gradlew assembleRelease` 构建通过，APK 清单核对 `targetSdkVersion=36`、
+  `native-code: arm64-v8a`、`POST_NOTIFICATIONS` 权限。

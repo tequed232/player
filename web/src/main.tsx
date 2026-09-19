@@ -42,6 +42,7 @@ import './theme/icon-font.css';
 import './theme/tokens.css';
 import './theme/base.css';
 import './theme/components.css';
+import './theme/schedule.css';
 
 /* MotionScheme.expressive(): solve the springs once and publish them as CSS vars. */
 installMotionScheme();

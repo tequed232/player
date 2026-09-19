@@ -1,0 +1,324 @@
+/* ============================================================================
+   课表 (course schedule) screen styles: the four-day table with its 早/中/晚 time
+   axis, the selected day timeline, the course detail sheet and the map chooser.
+   ========================================================================= */
+
+.schedule-head {
+  flex: 0 0 auto;
+  padding: 0 16px 8px;
+}
+
+.schedule-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.week-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  margin: 4px 0 8px;
+  border-radius: 999px;
+  background: var(--md-sys-color-surface-container);
+}
+
+.week-stepper .week-label {
+  flex: 1 1 auto;
+  text-align: center;
+  color: var(--md-sys-color-on-surface);
+}
+
+/* ------------------------------------------------------------ 4 day table -- */
+
+.sched-board {
+  position: relative;
+  border-radius: var(--md-sys-shape-corner-extra-large);
+  background: var(--md-sys-color-surface-container-low);
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.sched-track {
+  will-change: transform;
+}
+
+.sched-grid {
+  display: grid;
+  grid-template-columns: 54px repeat(4, minmax(0, 1fr));
+}
+
+/* the 早/中/晚 blocks and their rows must span the whole grid */
+.sched-block {
+  grid-column: 1 / -1;
+}
+
+.sched-corner {
+  height: 52px;
+}
+
+.sched-day-head {
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin: 4px 2px;
+  border-radius: 14px;
+  background: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-on-surface-variant);
+  transition: background 200ms linear, color 200ms linear, transform 200ms var(--md-sys-motion-spring-effects-default, ease-out);
+}
+
+.sched-day-head .day-name {
+  font-weight: 500;
+}
+
+.sched-day-head.today {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.sched-day-head.selected {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  transform: scale(1.03);
+}
+
+.sched-section {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 4px;
+  color: var(--md-sys-color-on-surface-variant);
+  background: var(--md-sys-color-surface-container);
+}
+
+.sched-section .sched-section-rule {
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--md-sys-color-outline-variant);
+}
+
+.sched-axis-cell {
+  padding: 6px 6px 6px 10px;
+  color: var(--md-sys-color-on-surface-variant);
+  border-top: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 45%, transparent);
+}
+
+.sched-cell {
+  padding: 3px;
+  border-top: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 45%, transparent);
+  min-height: 54px;
+}
+
+.course-chip {
+  display: block;
+  width: 100%;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 6px 7px;
+  min-height: 46px;
+  font-family: var(--md-ref-typeface-brand);
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.2px;
+  background: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-on-surface);
+  overflow: hidden;
+  transition: transform var(--md-sys-motion-spring-effects-fast-duration, 150ms) var(--md-sys-motion-spring-effects-fast, ease-out);
+}
+
+.course-chip:active {
+  transform: scale(0.96);
+}
+
+.course-chip.tone-1 {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.course-chip.tone-2 {
+  background: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+}
+
+.course-chip.highlight {
+  animation: course-highlight var(--md-sys-motion-spring-bounce-duration, 700ms) var(--md-sys-motion-spring-bounce, ease-out) 2;
+  outline: 2px solid var(--md-sys-color-primary);
+}
+
+@keyframes course-highlight {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.sched-empty {
+  color: var(--md-sys-color-on-surface-variant);
+  opacity: 0.6;
+  font-size: 12px;
+  padding: 6px;
+}
+
+/* --------------------------------------------------------- day timeline --- */
+
+.timeline-section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 6px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.timeline-section-label .rule {
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--md-sys-color-outline-variant);
+}
+
+.timeline-item {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container-low);
+  cursor: pointer;
+}
+
+.timeline-item + .timeline-item {
+  margin-top: 8px;
+}
+
+.timeline-time {
+  flex: 0 0 62px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.timeline-details {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--md-sys-color-outline-variant);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeline-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.address-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--md-sys-color-outline);
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  cursor: pointer;
+  font-family: var(--md-ref-typeface-brand);
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------------ map chooser -- */
+
+.map-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 8px;
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.map-option.selected {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.map-option + .map-option {
+  margin-top: 4px;
+}
+
+.map-preview {
+  border-radius: 20px;
+  background: var(--md-sys-color-surface-container-highest);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ------------------------------------------------------------- filter tab -- */
+
+.filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container-low);
+  cursor: pointer;
+}
+
+.filter-row + .filter-row {
+  margin-top: 6px;
+}
+
+.filter-row .col-name {
+  color: var(--md-sys-color-on-surface);
+}
+
+.filter-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 0 12px 8px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+md-tabs {
+  display: flex;
+  --md-primary-tab-container-color: transparent;
+  --md-primary-tab-active-indicator-color: var(--md-sys-color-primary);
+  --md-primary-tab-active-indicator-height: 3px;
+  --md-primary-tab-active-indicator-shape: 3px 3px 0 0;
+  --md-primary-tab-label-text-color: var(--md-sys-color-on-surface-variant);
+  --md-primary-tab-active-label-text-color: var(--md-sys-color-primary);
+  --md-primary-tab-label-text-font: var(--md-ref-typeface-brand);
+  --md-primary-tab-label-text-size: 14px;
+  --md-primary-tab-label-text-weight: 500;
+  --md-primary-tab-active-label-text-weight: 700;
+  --md-primary-tab-container-height: 48px;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+md-primary-tab {
+  flex: 1 1 0;
+  min-width: 0;
+}

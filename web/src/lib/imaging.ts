@@ -2,10 +2,15 @@
 
 /** Natural image picker: one image at a time, via the platform file chooser. */
 export function pickImageFile(): Promise<File | null> {
+  return pickFile('图片', 'image/*');
+}
+
+/** Generic single file picker (images, schedule documents, ...). */
+export function pickFile(_label: string, accept: string): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*';
+    input.accept = accept;
     input.multiple = false;
     input.style.position = 'fixed';
     input.style.left = '-1000px';

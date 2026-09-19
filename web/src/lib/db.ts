@@ -181,3 +181,4 @@ export async function removeKv(key: string): Promise<void> {
 }
 
 export const DRAFT_KEY = 'draft';
+export const SCHEDULE_KEY = 'schedule';

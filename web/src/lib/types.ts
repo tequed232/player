@@ -47,6 +47,10 @@ export interface AppSettings {
   visionApiKey: string;
   qaApiUrl: string;
   qaApiKey: string;
+  /** default map provider id used when navigating to a course address ('' = ask every time) */
+  mapProvider: string;
+  /** teaching week 1 Monday, yyyy-mm-dd; '' = use the value embedded in the schedule */
+  termStart: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -59,6 +63,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   visionApiKey: '',
   qaApiUrl: '',
   qaApiKey: '',
+  mapProvider: '',
+  termStart: '',
 };
 
 /** The live capture/draft session shown on the Home screen. */

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
@@ -53,11 +54,13 @@ import androidx.compose.ui.unit.dp
 import com.app.m3expressive.ui.theme.M3ExpressiveTheme
 
 private data class HistoryRecord(val title: String, val detail: String)
-private enum class AppTab { HOME, HISTORY, SETTINGS }
+private enum class AppTab { HOME, HISTORY, SCHEDULE, SETTINGS }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Android 16 Live Updates / ColorOS 流体云 渠道
+        LiveUpdates.ensureChannel(this)
         setContent { M3ExpressiveTheme { M3ExpressiveApp() } }
     }
 }
@@ -70,12 +73,29 @@ private fun M3ExpressiveApp() {
     var sttApi by remember { mutableStateOf("") }
     var i2tApi by remember { mutableStateOf("") }
     val history = remember { mutableStateListOf<HistoryRecord>() }
+
+    // Android 13+ 通知权限：Live Updates / 流体云 需要它
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> if (!granted) status = "未授予通知权限，流体云状态不可见" }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
         if (!text.isNullOrBlank()) {
             history.add(0, HistoryRecord("语音转文字", text))
             status = "已完成语音识别"
-        } else status = "没有识别到内容"
+            LiveUpdates.finish(context, "语音识别完成", text.take(80))
+        } else {
+            status = "没有识别到内容"
+            LiveUpdates.clear(context)
+        }
     }
     val microphonePermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -90,7 +110,11 @@ private fun M3ExpressiveApp() {
         if (bitmap != null) {
             history.add(0, HistoryRecord("图片转文字", "已拍摄图片，等待图像文字识别"))
             status = "图片已捕获"
-        } else status = "未获取到图片"
+            LiveUpdates.finish(context, "图片已捕获", "等待图像文字识别")
+        } else {
+            status = "未获取到图片"
+            LiveUpdates.clear(context)
+        }
     }
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -102,6 +126,12 @@ private fun M3ExpressiveApp() {
         NavigationBar {
             NavigationBarItem(tab == AppTab.HOME, { tab = AppTab.HOME }, icon = { Icon(Icons.Outlined.Home, null) }, label = { Text("首页") })
             NavigationBarItem(tab == AppTab.HISTORY, { tab = AppTab.HISTORY }, icon = { Icon(Icons.Outlined.History, null) }, label = { Text("历史") })
+            NavigationBarItem(
+                tab == AppTab.SCHEDULE,
+                { tab = AppTab.SCHEDULE },
+                icon = { Icon(Icons.Outlined.CalendarMonth, null) },
+                label = { Text("课表") },
+            )
             NavigationBarItem(tab == AppTab.SETTINGS, { tab = AppTab.SETTINGS }, icon = { Icon(Icons.Outlined.Settings, null) }, label = { Text("设置") })
         }
     }) { padding ->
@@ -109,18 +139,21 @@ private fun M3ExpressiveApp() {
             when (tab) {
                 AppTab.HOME -> HomeScreen(status, {
                     if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        LiveUpdates.update(context, "语音记录", "正在聆听，请说话…")
                         startSpeechRecognition(context, speechLauncher::launch) { status = it }
                     } else {
                         microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
                 }, {
                     if (context.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        LiveUpdates.update(context, "拍照记录", "正在打开相机…")
                         cameraLauncher.launch(null)
                     } else {
                         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     }
                 }) { tab = AppTab.SETTINGS }
                 AppTab.HISTORY -> HistoryScreen(history)
+                AppTab.SCHEDULE -> ScheduleScreen()
                 AppTab.SETTINGS -> SettingsScreen(sttApi, i2tApi, { sttApi = it }, { i2tApi = it }, { status = "API 配置已保存" }) {
                     context.startActivity(Intent(Settings.ACTION_SETTINGS))
                 }

@@ -14,6 +14,17 @@ import { deriveKeyPoints } from '../lib/api';
 import { DEFAULT_SETTINGS, EMPTY_DRAFT, type AppSettings, type Draft, type NoteRecord, type QaBranch } from '../lib/types';
 import { applyRoles, buildThemes, detectSeed, type SeedSource } from '../theme/palette';
 import { formatDateTime, uid } from '../lib/utils';
+import { EMBEDDED_SCHEDULE } from '../data/schedule';
+import type { ScheduleData } from '../lib/schedule';
+
+/** Temporary highlight applied when the filter screen jumps back to the schedule. */
+export interface ScheduleHighlight {
+  key: string;
+  dayIndex: number;
+  /** teaching week the course actually runs in (when it differs from the current week) */
+  week?: number;
+  until: number;
+}
 
 export interface SnackbarMessage {
   id: number;
@@ -49,6 +60,12 @@ interface AppStateValue {
   effectiveKeyPoints: string[];
   seed: SeedSource;
   dynamicColor: boolean;
+  /** embedded course schedule, overridden by an imported one */
+  schedule: ScheduleData;
+  scheduleImported: boolean;
+  setSchedule: (data: ScheduleData | null) => void;
+  scheduleHighlight: ScheduleHighlight | null;
+  setScheduleHighlight: (highlight: ScheduleHighlight | null) => void;
   updateSettings: (patch: Partial<AppSettings>, options?: UpdateOptions) => void;
   createRecord: (input: RecordInput) => Promise<NoteRecord>;
   updateRecord: (id: string, patch: Partial<NoteRecord>) => Promise<void>;
@@ -81,6 +98,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [snackbar, setSnackbar] = useState<SnackbarMessage | null>(null);
   const [seed] = useState<SeedSource>(() => detectSeed());
   const theme = useMemo(() => buildThemes(seed), [seed]);
+  const [importedSchedule, setImportedSchedule] = useState<ScheduleData | null>(null);
+  const [scheduleHighlight, setScheduleHighlight] = useState<ScheduleHighlight | null>(null);
 
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
@@ -91,20 +110,34 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [storedSettings, storedRecords, storedDraft] = await Promise.all([
+      const [storedSettings, storedRecords, storedDraft, storedSchedule] = await Promise.all([
         db.readSettings(),
         db.getAllRecords(),
         db.readKv<Draft>(db.DRAFT_KEY),
+        db.readKv<ScheduleData>(db.SCHEDULE_KEY),
       ]);
       if (cancelled) return;
       setSettings({ ...DEFAULT_SETTINGS, ...storedSettings });
       setRecords(storedRecords);
       if (storedDraft) setDraftState({ ...EMPTY_DRAFT, ...storedDraft, interim: '' });
+      if (storedSchedule?.periods?.length) setImportedSchedule(storedSchedule);
       setReady(true);
     })();
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  const schedule = importedSchedule ?? EMBEDDED_SCHEDULE;
+
+  const setSchedule = useCallback<AppStateValue['setSchedule']>((data) => {
+    if (!data) {
+      setImportedSchedule(null);
+      void db.removeKv(db.SCHEDULE_KEY);
+      return;
+    }
+    setImportedSchedule(data);
+    void db.writeKv(db.SCHEDULE_KEY, data);
   }, []);
 
   /* --------------------------------------------------------- persistence */
@@ -272,6 +305,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       effectiveKeyPoints,
       seed,
       dynamicColor: theme.dynamic,
+      schedule,
+      scheduleImported: importedSchedule !== null,
+      setSchedule,
+      scheduleHighlight,
+      setScheduleHighlight,
       updateSettings,
       createRecord,
       updateRecord,
@@ -295,6 +333,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       effectiveKeyPoints,
       seed,
       theme.dynamic,
+      schedule,
+      importedSchedule,
+      setSchedule,
+      scheduleHighlight,
+      setScheduleHighlight,
       updateSettings,
       createRecord,
       updateRecord,

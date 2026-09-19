@@ -145,12 +145,12 @@ export default function CameraScreen() {
     }
   };
 
-  const selectTab = (tab: 'home' | 'history' | 'settings') => {
+  const selectTab = (tab: 'home' | 'history' | 'schedule' | 'settings') => {
     if (tab === 'home') {
       nav.popTo('home');
       return;
     }
-    nav.push(tab === 'history' ? 'history' : 'settings', {}, 'slide');
+    nav.push(tab, {}, 'slide');
   };
 
   return (

@@ -20,7 +20,7 @@ import { MOTION } from '../theme/motion';
 import { uid } from '../lib/utils';
 
 export type TransitionKind = 'slide' | 'fade' | 'zoom';
-export type RouteName = 'home' | 'camera' | 'history' | 'settings' | 'record' | 'apiEdit' | 'blank';
+export type RouteName = 'home' | 'camera' | 'history' | 'settings' | 'record' | 'apiEdit' | 'blank' | 'schedule' | 'scheduleFilter';
 
 export interface RouteEntry {
   key: string;

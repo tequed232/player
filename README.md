@@ -75,10 +75,38 @@ dist/
 | `home` | 主页 | 实时语音转文字容器（点击 → 全屏面板）、总结/重点/思维导图容器（点击 → 全屏面板）、长按输入框进入提问模式、"拍照 / 导入图片" 相连按钮组、导航栏 |
 | `camera` | 摄像 | `getUserMedia` 实时预览（圆角 20dp）、预览左上角"返回"填充按钮、标签输入（含历史标签建议）、快门写入记录并调用图片转文字 API |
 | `history` | 历史 | "最近三次记录"顶部应用栏 + more_vert 菜单、搜索框、记录卡片列表、卡片菜单（查看/编辑/删除）、空状态 |
-| `settings` | 设置 | 5 项列表（3dp 间距、28dp 外圆角 / 8dp 内圆角）+ 叠放其上的开关与两个 Expressive 滑块、已保存消息条（撤销） |
+| `settings` | 设置 | 6 项列表（3dp 间距、28dp 外圆角 / 8dp 内圆角）+ 叠放其上的开关与两个 Expressive 滑块 + 默认跳转地图、已保存消息条（撤销） |
 | `record` | 屏幕 5 · 记录详情 | 图片多浏览轮播 → 全屏查看器（左右滑动 / 下滑关闭）、文字要点容器 → 可滚动全屏面板、顶部返回 / 编辑 / 删除（确认对话框） |
 | `apiEdit` | API 修改 | 语音转文字 / 图片转文字 / 问答 API 与密钥、380×380 测试图片占位、刷新（重新载入）与删除全部 API（确认对话框）、保存后消息条 + 撤销 |
+| `schedule` | 课表 · 四分课表 | 内嵌课表 + 四日表格（上午/中午/下午/晚上时间轴、左右拖动跟手切换日期窗口）、点击课程查看老师/时间/地点、点击地点启动地图导航、课表数据导入面板 |
+| `scheduleFilter` | 筛选 | 老师 / 课程 / 地点 / 时间 四个标签检索，结果按 课程·老师·地点 三列排列，点击回到课表并高亮 5 秒 |
 | `blank` | 屏幕 7 | 按草图保留的空屏幕 |
+
+### 课表（自主嵌入）
+
+* `scripts/import-schedule.mjs` 解析学校教务系统导出的 `学生课表.doc`（RTF 表格），同时生成
+  Web 的 `web/src/data/schedule.ts` 与 Android 的 `ScheduleData.kt` —— 应用启动即自带课表
+  （罗瑞谦 · 2026-2027-1 · 7 节次 × 7 天 · 24 门课），不需要运行时导入。
+* 四日表格：左侧时间轴按**上午 / 中午 / 下午 / 晚上**分段，上方并排四天；在表格上左右**拖动跟手**切换日期窗口
+  （松手按 Expressive 弹簧回弹），点击某天选中该日，下方列出当天课程。
+* 周次：按学期开始日期（可改）计算当前教学周，表格只显示该周实际开设的课程；输入框可调学期开始日。
+* 课程详情：默认只显示课程名，点击后展开授课老师、节次时间、周次与地点；点击地点即调用地图。
+* 筛选屏：`老师/课程/地点/时间` 四标签 + 语音输入搜索词，点击结果回到课表并**高亮 5 秒**
+  （若该课程不在当前周，自动切到它开课的那一周并提示）。
+* 导入：`课表数据` 面板支持 `.doc/.rtf`、`.html` 表格、`.csv/.txt` 文本导入或恢复内置课表，结果存于 IndexedDB。
+
+### Android（Android 16 / 天玑 9400 / ColorOS 流体云）
+
+* `app/` 是同一套设计的 Compose 实现，导航栏同样包含 **课表** 标签页，课表数据与 Web 端同源。
+* **流体云**：语音识别与拍照期间发布 Android 16 **Live Updates**
+  （`Notification.ProgressStyle` + `setRequestPromotedOngoing(true)`），ColorOS 16 会渲染成**流体云**卡片；
+  完成后显示结果并在数秒后自动收起。该 API 仅存在于 Android 16，代码用反射调用，
+  因此同一份 APK 在旧系统上退化为普通进行中通知，在 Android 16 上则进入流体云。
+* 已加入 `POST_NOTIFICATIONS` 运行时申请、`enableOnBackInvokedCallback`（Android 16 预测式返回）、
+  `uses-feature camera/microphone required=false`、`windowSoftInputMode=adjustResize`。
+* 本机 SDK 平台为 android-35，因此 APK 目前是 `targetSdk 35`（在 Android 16 / ColorOS 16 上正常运行）；
+  安装 `platforms;android-36` 后把 `app/build.gradle.kts` 的 `compileSdk/targetSdk` 改成 36 并升级 AGP ≥ 8.9
+  即可得到 targetSdk 36 构建。
 
 ### 真实数据
 
@@ -113,10 +141,12 @@ dist/
 → 历史卡片 → 记录详情 → 图片全屏查看器 → 文字面板 → 刷新后记录仍在（IndexedDB）
 → 深色模式开关 + 撤销 → 删除确认对话框 + 取消 → 长按进入提问模式 → 提问生成思维导图分支
 → 滑块拖动 + 刷新后仍为 81% → 历史 more_vert 菜单
+→ 课表：四日表格渲染（4 列 × 4 段 × 7 节次）→ 点击课程详情 → 拖动切换日期窗口
+→ 筛选屏检索 → 结果高亮定位 → 课表数据导入面板
 ```
 
-结果：**全部通过，0 个 console 错误、0 个 page error**；截图见 `screenshots/`（`report.json` 内含配色、尺寸与令牌核对数据）。
-线上部署（GitHub Pages）用同一套脚本跑过一遍，同样是 49 步全通过、0 错误，截图与报告在 `screenshots-live/`。
+结果：**62 步全部通过，0 个 console 错误、0 个 page error**；截图见 `screenshots/`（`report.json` 内含配色、尺寸与令牌核对数据）。
+线上部署（GitHub Pages）用同一套脚本跑过一遍，截图与报告在 `screenshots-live/`。
 
 ## 与草图的三处有意偏差
 
@@ -136,7 +166,13 @@ web/src/
   components/             md.tsx（Material Web 封装）、layout / overlays / content
   screens/                7 个屏幕
   nav/ state/ lib/ theme/ 导航、全局状态、IndexedDB / 语音 / API / 图像、设计令牌
-scripts/                  subset-icons.mjs、check-icons.mjs、verify.mjs、github-release.mjs、serve-dist.mjs
+scripts/                  subset-icons.mjs、check-icons.mjs、import-schedule.mjs、rtf-dump.mjs、
+                          verify.mjs、github-release.mjs、serve-dist.mjs
 legacy/index.html         上一版单文件页面（保留备查）
 vite.config.ts            root=web，outDir=dist
+app/src/main/java/com/app/m3expressive/
+  MainActivity.kt         首页 / 历史 / 课表 / 设置 四个标签页
+  ScheduleTab.kt          Compose 版四日课表 + 地图选择
+  ScheduleData.kt         内嵌课表（脚本生成）
+  LiveUpdates.kt          Android 16 Live Updates / ColorOS 流体云
 ```
