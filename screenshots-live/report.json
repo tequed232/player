@@ -103,7 +103,7 @@
     "settings": {
       "list": {
         "w": 380,
-        "h": 388,
+        "h": 463,
         "x": 16,
         "y": 72
       },
@@ -129,8 +129,13 @@
           "radius": "8px"
         },
         {
-          "h": 88,
+          "h": 72,
           "y": 372,
+          "radius": "8px"
+        },
+        {
+          "h": 88,
+          "y": 447,
           "radius": "8px 8px 28px 28px"
         }
       ],
@@ -141,11 +146,11 @@
         },
         {
           "w": 168,
-          "y": 234
+          "y": 309
         },
         {
           "w": 168,
-          "y": 309
+          "y": 384
         }
       ],
       "switchTrack": [
@@ -166,7 +171,7 @@
     },
     "persisted": [
       {
-        "title": "照片记录 · 2026/09/19 18:23",
+        "title": "照片记录 · 2026/09/19 20:31",
         "images": 1
       }
     ],
@@ -224,9 +229,43 @@
       "visionApiUrl": "",
       "visionApiKey": "",
       "qaApiUrl": "",
-      "qaApiKey": ""
+      "qaApiKey": "",
+      "mapProvider": "",
+      "termStart": ""
     },
-    "menuItems": "\n显示全部记录"
+    "menuItems": "\n显示全部记录",
+    "schedule": {
+      "board": {
+        "w": 412,
+        "h": 406
+      },
+      "dayHeads": [
+        "周三9月16日",
+        "周四9月17日",
+        "周五9月18日",
+        "周六9月19日"
+      ],
+      "chips": [
+        "国产操作系统管理",
+        "体育与健康（一）",
+        "国产操作系统管理"
+      ],
+      "chipCount": 3,
+      "axisCells": 7,
+      "sections": [
+        "上午",
+        "中午",
+        "下午",
+        "晚上"
+      ],
+      "timelineItems": 1
+    },
+    "courseDetail": "\n国产操作系统管理\n\n\n周五 · 第5-6节 · 14:10-15:35\n\n刘桂颜\n\n2026信创03班\n\n3;6-9;12-20 周\n\n3-603\n\n导航",
+    "windowBefore": "周三 9月16日",
+    "windowAfter": "周四 9月17日",
+    "filterResults": 24,
+    "highlighted": 1,
+    "importSheet": "\n课表数据\n\n当前课表：内置（来自 学生课表.doc） · 罗瑞谦 · 2026-2027-1 · 7 节次 · 24 门课\n\n选择文件\n\n恢复内置\n支持 .doc/.rtf（教务系统导出）、.html（表格另存为）、.csv/.txt（复制的课表文本）。导入后保存在本机浏览器。\n解析并导入文本\n学期开始日期（第 1 周周一）\n保存日期\n用于计算当前教学周，进而过滤每周实际开设的课程。"
   },
   "consoleErrors": [],
   "pageErrors": [],
@@ -279,6 +318,19 @@
     "shot:19-slider-drag",
     "ok:slider value survives reload",
     "ok:history overflow menu opens",
-    "shot:20-history-menu"
+    "shot:20-history-menu",
+    "ok:schedule tab shows the four day table",
+    "shot:21-schedule",
+    "ok:course detail opens from the table",
+    "shot:22-schedule-course-detail",
+    "ok:close course detail",
+    "ok:dragging the table shifts the four day window",
+    "shot:23-schedule-dragged",
+    "ok:schedule filter screen",
+    "shot:24-schedule-filter",
+    "ok:filter result highlights the course",
+    "shot:25-schedule-highlight",
+    "ok:schedule import sheet",
+    "shot:26-schedule-import"
   ]
 }
