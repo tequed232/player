@@ -1,6 +1,9 @@
-/** Application shell: the 412x892 phone stage, the screen stack and the snackbar. */
+/** Application shell: the 412x892 phone stage, the screen stack, splash and snackbar. */
+import { useEffect, useState } from 'react';
 import { NavHost, useNav, type RouteName } from './nav/navigation';
 import { SnackbarLayer } from './components/overlays';
+import { SplashScreen } from './components/splash';
+import { useAppState } from './state/AppState';
 import HomeScreen from './screens/HomeScreen';
 import CameraScreen from './screens/CameraScreen';
 import HistoryScreen from './screens/HistoryScreen';
@@ -10,6 +13,7 @@ import ApiEditScreen from './screens/ApiEditScreen';
 import BlankScreen from './screens/BlankScreen';
 import ScheduleScreen from './screens/ScheduleScreen';
 import ScheduleFilterScreen from './screens/ScheduleFilterScreen';
+import AboutScreen from './screens/AboutScreen';
 
 const SCREENS = {
   home: HomeScreen,
@@ -21,6 +25,7 @@ const SCREENS = {
   blank: BlankScreen,
   schedule: ScheduleScreen,
   scheduleFilter: ScheduleFilterScreen,
+  about: AboutScreen,
 };
 
 /** Screens that own a bottom navigation bar keep the snackbar 16dp above it. */
@@ -28,13 +33,35 @@ const WITH_NAV_BAR: RouteName[] = ['home', 'camera', 'history', 'settings', 'sch
 
 export default function App() {
   const { current } = useNav();
+  const { ready } = useAppState();
   const bottom = WITH_NAV_BAR.includes(current.route) ? 96 : 16;
+
+  // 开屏：数据就绪后自动进入；进入时主页组件从下向上依次弹出
+  const [splash, setSplash] = useState(true);
+  const [entering, setEntering] = useState(false);
+
+  useEffect(() => {
+    if (splash) return undefined;
+    setEntering(true);
+    const timer = window.setTimeout(() => setEntering(false), 900);
+    return () => window.clearTimeout(timer);
+  }, [splash]);
 
   return (
     <div className="stage">
-      <div className="phone">
+      <div className={['phone', entering ? 'entering' : ''].join(' ').trim()}>
         <NavHost screens={SCREENS} />
         <SnackbarLayer bottom={bottom} />
+        {splash ? <SplashScreen ready={ready} onDone={() => setSplash(false)} /> : null}
+
+        {/* 液态玻璃底边栏的折射滤镜（无外部依赖） */}
+        <svg width="0" height="0" aria-hidden="true" style={{ position: 'absolute' }}>
+          <filter id="liquid-glass-refraction">
+            <feTurbulence type="fractalNoise" baseFrequency="0.008 0.02" numOctaves="2" seed="7" result="noise" />
+            <feGaussianBlur in="noise" stdDeviation="2" result="soft" />
+            <feDisplacementMap in="SourceGraphic" in2="soft" scale="16" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </svg>
       </div>
     </div>
   );

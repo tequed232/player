@@ -1,0 +1,91 @@
+# Anubis 策略文件（botPolicies.yaml）
+#
+# 参考上游文档：https://anubis.techaro.lol/docs/admin/configuration/thresholds
+# 语法：bots[] 里的规则按顺序匹配，命中终止性动作（ALLOW / DENY / CHALLENGE）后立即生效；
+#       action: WEIGH 只累加/扣减权重，最后由 thresholds 统一决定动作。
+#
+# 本项目是静态站点（多分课表，GitHub Pages 上的 SPA + 课表数据），
+# 因此策略目标很明确：真人一次通过、正常搜索引擎放行、AI 抓取器加重或拒绝。
+
+bots:
+  # --- 放行：站点自身的健康检查与静态资源探测 -------------------------------
+  - name: healthcheck
+    user_agent_regex: "anubis-healthcheck"
+    action: ALLOW
+
+  # --- 放行：主流搜索引擎（它们对站点收录有价值），但降低权重不额外加成 -----
+  - name: googlebot
+    user_agent_regex: "Googlebot|Google-InspectionTool"
+    action: WEIGH
+    weight:
+      adjust: -6
+
+  - name: bingbot
+    user_agent_regex: "bingbot|BingPreview|adidxbot"
+    action: WEIGH
+    weight:
+      adjust: -6
+
+  - name: baidu-sogou-360
+    user_agent_regex: "Baiduspider|Sogou web spider|360Spider|YisouSpider"
+    action: WEIGH
+    weight:
+      adjust: -4
+
+  # --- 拒绝：明确的 AI 抓取器 / 数据集采集器 --------------------------------
+  - name: ai-crawlers
+    user_agent_regex: >-
+      GPTBot|ChatGPT-User|OAI-SearchBot|ClaudeBot|Claude-Web|anthropic-ai|
+      PerplexityBot|Perplexity-User|Google-Extended|Applebot-Extended|
+      Bytespider|CCBot|Amazonbot|FacebookBot|meta-externalagent|
+      cohere-ai|Diffbot|Omgilibot|ImagesiftBot|YouBot|PetalBot|
+      Timpibot|VelenPublicWebCrawler|omgili|FriendlyCrawler|
+      Scrapy|python-requests|aiohttp|Go-http-client|node-fetch|axios
+    action: DENY
+
+  # --- 加重：无人值守的下载器 / SEO 工具，走向高难度挑战 --------------------
+  - name: aggressive-tools
+    user_agent_regex: "wget|curl|libwww-perl|Java/|okhttp|HTTPie|PostmanRuntime|HeadlessChrome|PhantomJS|Selenium|puppeteer"
+    action: WEIGH
+    weight:
+      adjust: 18
+
+  # --- 轻微加成：普通浏览器 UA（真人大概率从这里通过） ---------------------
+  - name: generic-browser
+    user_agent_regex: "Mozilla|Opera|Safari|Firefox|Edg/"
+    action: WEIGH
+    weight:
+      adjust: 2
+
+# 兜底：没有命中任何规则时按权重决定动作
+thresholds:
+  - name: minimal-suspicion
+    expression: weight < 0
+    action: ALLOW
+
+  - name: mild-suspicion
+    expression:
+      all:
+        - weight >= 0
+        - weight < 10
+    action: CHALLENGE
+    challenge:
+      algorithm: fast
+      difficulty: 3
+
+  - name: moderate-suspicion
+    expression:
+      all:
+        - weight >= 10
+        - weight < 20
+    action: CHALLENGE
+    challenge:
+      algorithm: fast
+      difficulty: 4
+
+  - name: extreme-suspicion
+    expression: weight >= 20
+    action: CHALLENGE
+    challenge:
+      algorithm: fast
+      difficulty: 5

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Thin React wrappers around the Material Web (`@material/web`) custom elements.
  *
  * Material Web components expose imperative properties (`selected`, `value`,
@@ -85,6 +85,7 @@ export function MdSlider({
   className,
   style,
   labeled = false,
+  ticks = false,
 }: {
   value: number;
   min?: number;
@@ -96,6 +97,7 @@ export function MdSlider({
   className?: string;
   style?: CSSProperties;
   labeled?: boolean;
+  ticks?: boolean;
 }) {
   const ref = useRef<HTMLElement & { value: number; min: number; max: number; step: number }>(null);
   const inputHandler = useRef(onInput);
@@ -133,6 +135,7 @@ export function MdSlider({
       style={style}
       aria-label={ariaLabel}
       labeled={labeled ? '' : undefined}
+      ticks={ticks ? '' : undefined}
     />
   );
 }
@@ -331,9 +334,35 @@ export function MdMenu({
  * React 19 assigns custom element props as *properties* when they exist, so passing
  * `open=""` would set `dialog.open = ''` (falsy) and the dialog would never open.
  * Always drive md-dialog through show()/close() instead.
+ *
+ * 另外：md-dialog 关闭动画结束后会派发 `closed`。如果此时上层状态仍是「打开」
+ * （例如又一次点击了编辑按钮），对话框会被这次迟到的 closed 关掉，表现为
+ * “点击编辑没反应”。这里在 closed 时如果期望仍是打开状态就重新 show()。
  */
 export function useMdDialog(open: boolean) {
   const ref = useRef<HTMLElement & { show: () => void; close: () => void; open: boolean }>(null);
+  const wantOpen = useRef(open);
+  wantOpen.current = open;
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return undefined;
+    const onClosed = () => {
+      if (!wantOpen.current) return;
+      // 迟到的 closed：重新打开，避免“第二次点编辑没反应”
+      window.setTimeout(() => {
+        if (wantOpen.current && !element.open) {
+          try {
+            element.show();
+          } catch {
+            /* ignore */
+          }
+        }
+      }, 0);
+    };
+    element.addEventListener('closed', onClosed);
+    return () => element.removeEventListener('closed', onClosed);
+  }, []);
 
   useEffect(() => {
     const element = ref.current;
@@ -372,6 +401,8 @@ export function MdDialog({
   const ref = useRef<HTMLElement & { show: () => void; close: () => void; open: boolean }>(null);
   const closedHandler = useRef(onClosed);
   closedHandler.current = onClosed;
+  const wantOpen = useRef(open);
+  wantOpen.current = open;
 
   useEffect(() => {
     const element = ref.current;
@@ -394,7 +425,22 @@ export function MdDialog({
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
-    const onClosedEvent = () => closedHandler.current?.();
+    const onClosedEvent = () => {
+      // 迟到的 closed（上层仍希望打开）时重新弹出，保证「编辑」可重复进入
+      if (wantOpen.current && !element.open) {
+        window.setTimeout(() => {
+          if (wantOpen.current && !element.open) {
+            try {
+              element.show();
+            } catch {
+              /* ignore */
+            }
+          }
+        }, 0);
+        return;
+      }
+      closedHandler.current?.();
+    };
     element.addEventListener('closed', onClosedEvent);
     return () => element.removeEventListener('closed', onClosedEvent);
   }, []);

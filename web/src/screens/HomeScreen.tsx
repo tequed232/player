@@ -40,9 +40,7 @@ export default function HomeScreen() {
 
   const [topOpen, setTopOpen] = useState(false);
   const [middleOpen, setMiddleOpen] = useState(false);
-  const [questionMode, setQuestionMode] = useState(false);
   const [question, setQuestion] = useState('');
-  const [manualText, setManualText] = useState('');
   const [busy, setBusy] = useState(false);
   /** 圆圈按钮的两种录制模式：长时间录制 / 临时录制 */
   const [recording, setRecording] = useState<'idle' | 'continuous' | 'temporary'>('idle');
@@ -89,7 +87,7 @@ export default function HomeScreen() {
       notice.close();
       const text = draft.transcript.trim();
       if (text) {
-        notice.show('语音识别完成 · 四分', text.slice(0, 90));
+        notice.show('语音识别完成 · 多分课表', text.slice(0, 90));
         window.setTimeout(() => notice.close(), 4000);
       }
       return;
@@ -99,7 +97,7 @@ export default function HomeScreen() {
     speech.start();
     showSnackbar({ message: '进入长时间录制', duration: 3000 });
     notice.show(
-      '正在录音 · 四分',
+      '正在录音 · 多分课表',
       granted ? '长时间录制进行中，再次点按圆圈结束' : '长时间录制进行中（未授予通知权限）',
     );
   }, [draft.transcript, notice, showSnackbar, speech]);
@@ -116,7 +114,7 @@ export default function HomeScreen() {
     setRecording('temporary');
     speech.start();
     showSnackbar({ message: '临时录制（松开后最多录制 10 秒）', duration: 3000 });
-    notice.show('临时录制 · 四分', granted ? '识别到一句话后自动结束' : '临时录制进行中');
+    notice.show('临时录制 · 多分课表', granted ? '识别到一句话后自动结束' : '临时录制进行中');
     tempTimer.current = window.setTimeout(() => {
       speechRef.current?.stop();
       setRecording('idle');
@@ -138,7 +136,7 @@ export default function HomeScreen() {
       .toString()
       .padStart(2, '0');
     const ss = (noticeSeconds % 60).toString().padStart(2, '0');
-    notice.show(recordingRef.current === 'temporary' ? '临时录制 · 四分' : '正在录音 · 四分', `${mm}:${ss} · 实时语音转文字进行中`);
+    notice.show(recordingRef.current === 'temporary' ? '临时录制 · 多分课表' : '正在录音 · 多分课表', `${mm}:${ss} · 实时语音转文字进行中`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noticeSeconds, isRecording]);
 
@@ -245,14 +243,6 @@ export default function HomeScreen() {
       setBusy(false);
     }
   }, [addBranchAnswer, draft.imageSummary, draft.transcript, effectiveKeyPoints, question, settings, showSnackbar]);
-
-  const submitManualText = useCallback(() => {
-    const text = manualText.trim();
-    if (!text) return;
-    appendTranscript(text);
-    setManualText('');
-    showSnackbar({ message: '已追加到语音转文字内容' });
-  }, [appendTranscript, manualText, showSnackbar]);
 
   const selectTab = (tab: 'home' | 'history' | 'schedule' | 'settings') => {
     if (tab === 'home') {
@@ -407,31 +397,12 @@ export default function HomeScreen() {
 
           <div className="home-input">
             <MdTextField
-              label={questionMode ? '提问模式 · 回车发送' : '输入文本'}
-              value={questionMode ? question : manualText}
-              onValueChange={(value) => (questionMode ? setQuestion(value) : setManualText(value))}
-              onEnter={() => (questionMode ? void submitQuestion() : submitManualText())}
-              supportingText={questionMode ? '就上方总结内容与语音转文字提问' : undefined}
-              trailingIcon={
-                questionMode ? (
-                  <div className="row" style={{ gap: 0 }}>
-                    <MdIconButton icon="send" label="发送问题" onClick={() => void submitQuestion()} />
-                    <MdIconButton icon="close" label="退出提问模式" onClick={() => setQuestionMode(false)} />
-                  </div>
-                ) : (
-                  <div className="row" style={{ gap: 0 }}>
-                    <MdIconButton
-                      icon="voice_selection"
-                      label="进入提问模式"
-                      onClick={() => {
-                        setQuestionMode(true);
-                        showSnackbar({ message: '已进入提问模式：输入问题后按回车发送', duration: 4000 });
-                      }}
-                    />
-                    <MdIconButton icon="keyboard_return" label="追加到转写文字" onClick={submitManualText} />
-                  </div>
-                )
-              }
+              label="提问 · 回车发送"
+              value={question}
+              onValueChange={setQuestion}
+              onEnter={() => void submitQuestion()}
+              supportingText="就上方总结内容与语音转文字提问，回答会收进思维导图分支"
+              trailingIcon={<MdIconButton icon="send" label="发送问题" onClick={() => void submitQuestion()} />}
             />
           </div>
         </div>

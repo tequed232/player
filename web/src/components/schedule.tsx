@@ -9,6 +9,8 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { MdIcon, MdIconButton, MdTextField, useMdDialog } from './md';
+import { analyzeImage } from '../lib/api';
+import { guessPublisher, matchCourseByText } from '../lib/textbooks';
 import { ExpandableSheet } from './overlays';
 import {
   MAP_PROVIDERS,
@@ -39,7 +41,7 @@ import {
   type ScheduleSection,
 } from '../lib/schedule';
 import { useAppState } from '../state/AppState';
-import { pickFile } from '../lib/imaging';
+import { pickFile, prepareImageFile } from '../lib/imaging';
 
 /* --------------------------------------------------------------- helpers --- */
 
@@ -610,9 +612,235 @@ export function CourseDetailSheet({
               </md-filled-tonal-button>
             ) : null}
           </div>
+
+          {/* 教材：内置教材库 + 封面识别结果 */}
+          <TextbookSection courseName={course.name} />
         </div>
       ) : null}
     </ExpandableSheet>
+  );
+}
+
+/* ------------------------------------------------------------ textbooks ---- */
+
+/**
+ * 课程详情里的「教材」：优先显示识别/填写结果，其次显示内置教材库
+ * （内置库由 12 张教材封面照片整理而来）。可以拍照识别封面、手动填写或移除。
+ */
+export function TextbookSection({ courseName }: { courseName: string }) {
+  const { schedule, settings, textbooks, setTextbook, showSnackbar } = useAppState();
+  const book = textbooks[courseName];
+  const hasBook = Boolean(book && (book.title || book.cover));
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [cover, setCover] = useState<string | null>(null);
+  const [ocrText, setOcrText] = useState('');
+  const [title, setTitle] = useState('');
+  const [publisher, setPublisher] = useState('');
+  const [edition, setEdition] = useState('');
+  const [target, setTarget] = useState(courseName);
+  const dialogRef = useMdDialog(dialogOpen);
+
+  const courseNames = useMemo(() => {
+    const names = new Set<string>();
+    schedule.periods.forEach((period) => period.days.forEach((day) => day.forEach((course) => names.add(course.name))));
+    return [...names];
+  }, [schedule]);
+
+  /** 取封面文字里最长的一行，通常就是书名 */
+  const longestLine = (text: string) =>
+    text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length)[0] ?? '';
+
+  const openDialog = (prefill?: { ocr?: string; cover?: string | null; matched?: string }) => {
+    const text = prefill?.ocr ?? '';
+    const matched = prefill?.matched ?? courseName;
+    const library = textbooks[matched];
+    const recognized = longestLine(text);
+    setOcrText(text);
+    setCover(prefill?.cover ?? book?.cover ?? null);
+    setTarget(matched);
+    setTitle(library?.title || recognized || '');
+    setPublisher(library?.publisher || guessPublisher(text) || '');
+    setEdition(library?.edition ?? '');
+    setDialogOpen(true);
+  };
+
+  /** 拍照/选择封面：配置了图片转文字API 就先识别，再进对话框确认 */
+  const captureCover = async () => {
+    const file = await pickFile('教材封面', 'image/*');
+    if (!file) return;
+    setBusy(true);
+    try {
+      const dataUrl = await prepareImageFile(file, settings.cameraSharpness);
+      setCover(dataUrl);
+      if (settings.visionApiUrl.trim()) {
+        try {
+          const result = await analyzeImage(dataUrl, settings);
+          const text = [result.summary, ...result.keyPoints].join('\n');
+          const matched = matchCourseByText(text, courseNames)?.course ?? courseName;
+          openDialog({ ocr: text, cover: dataUrl, matched });
+          showSnackbar({ message: `封面识别完成，匹配到《${matched}》`, duration: 4000 });
+        } catch (error) {
+          openDialog({ cover: dataUrl, matched: courseName });
+          showSnackbar({
+            message: `封面识别失败：${error instanceof Error ? error.message : '未知错误'}，可手动填写`,
+            duration: 6000,
+          });
+        }
+      } else {
+        openDialog({ cover: dataUrl, matched: courseName });
+        showSnackbar({ message: '已选择封面，可粘贴封面文字自动匹配课程', duration: 5000 });
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyRecognizedText = () => {
+    const matched = matchCourseByText(ocrText, courseNames)?.course;
+    if (!matched) {
+      showSnackbar({ message: '没有匹配到课程，可手动选择归属课程', duration: 4000 });
+      return;
+    }
+    const library = textbooks[matched];
+    setTarget(matched);
+    // 匹配到课程后，用该课程的内置教材（或封面文字）自动填充书名与出版社
+    setTitle(library?.title || longestLine(ocrText) || title);
+    setPublisher(library?.publisher || guessPublisher(ocrText) || publisher);
+    setEdition(library?.edition ?? edition);
+    showSnackbar({ message: `已匹配到《${matched}》，书名与出版社已自动填充`, duration: 4000 });
+  };
+
+  const saveBook = () => {
+    const finalTitle = title.trim() || '未命名教材';
+    setTextbook(target, {
+      course: target,
+      title: finalTitle,
+      publisher: publisher.trim(),
+      edition: edition.trim() || undefined,
+      cover: cover ?? undefined,
+      source: ocrText ? 'recognized' : 'manual',
+    });
+    setDialogOpen(false);
+    showSnackbar({ message: `已把《${finalTitle}》标记到《${target}》`, duration: 4000 });
+  };
+
+  return (
+    <div className="col gap-8">
+      <div className="row gap-8">
+        <MdIcon name="menu_book" size={18} />
+        <span className="md-title-small-emphasized flex-1">教材</span>
+        {hasBook ? (
+          <span className="md-label-small muted">
+            {book?.source === 'library' ? '按封面识别 · 内置库' : book?.source === 'recognized' ? '封面识别' : '手动填写'}
+            {book?.reference ? ' · 参考' : ''}
+          </span>
+        ) : null}
+      </div>
+
+      {hasBook ? (
+        <div className="textbook-card">
+          {book?.cover ? (
+            <img className="textbook-cover" src={book.cover} alt={`${book.title} 封面`} />
+          ) : (
+            <div className="textbook-cover placeholder">
+              <MdIcon name="menu_book" size={26} />
+            </div>
+          )}
+          <div className="col flex-1" style={{ gap: 2 }}>
+            <span className="md-title-small-emphasized">{book?.title}</span>
+            <span className="md-body-small muted">
+              {[book?.publisher, book?.edition, book?.series].filter(Boolean).join(' · ') || '未填写出版社'}
+            </span>
+          </div>
+          <div className="row" style={{ gap: 0 }}>
+            <MdIconButton icon="edit" label="修改教材" onClick={() => openDialog()} />
+            <MdIconButton
+              icon="delete"
+              label="移除教材"
+              onClick={() => {
+                setTextbook(courseName, null);
+                showSnackbar({ message: '已移除该课程的教材', duration: 3000 });
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="md-body-small muted">尚未识别教材，可拍一张封面或手动填写。</div>
+      )}
+
+      <div className="button-group" style={{ justifyContent: 'flex-start' }}>
+        <md-filled-tonal-button className="btn-s" onClick={() => void captureCover()} disabled={busy ? '' : undefined}>
+          <MdIcon slot="icon" name="photo_camera" />
+          拍照识别封面
+        </md-filled-tonal-button>
+        <md-outlined-button className="btn-s" onClick={() => openDialog()}>
+          <MdIcon slot="icon" name="edit_note" />
+          手动填写
+        </md-outlined-button>
+      </div>
+
+      <md-dialog ref={dialogRef} className="app-dialog">
+        <div slot="headline">标记教材</div>
+        <div slot="content" className="md-body-medium">
+          <div className="md-body-small muted mb-8">
+            可粘贴/输入封面上的文字，应用会自动匹配到课表里的课程；也可以直接填写书名。
+          </div>
+          <MdTextField
+            label="封面文字（可选）"
+            value={ocrText}
+            onValueChange={setOcrText}
+            type="textarea"
+            rows={3}
+            onEnter={applyRecognizedText}
+          />
+          <div className="mt-8">
+            <md-text-button onClick={applyRecognizedText}>按文字匹配课程</md-text-button>
+          </div>
+          <div className="mt-12">
+            <MdTextField label="书名" value={title} onValueChange={setTitle} />
+          </div>
+          <div className="mt-12">
+            <MdTextField label="出版社" value={publisher} onValueChange={setPublisher} />
+          </div>
+          <div className="mt-12">
+            <MdTextField label="版次（可选）" value={edition} onValueChange={setEdition} />
+          </div>
+          <div className="mt-12">
+            <label className="md-label-large" htmlFor="textbook-course">
+              归属课程
+            </label>
+            <select
+              id="textbook-course"
+              className="textbook-select"
+              value={target}
+              onChange={(event) => setTarget(event.target.value)}
+            >
+              {courseNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {cover ? (
+            <div className="row gap-12 mt-12" style={{ alignItems: 'center' }}>
+              <img className="textbook-cover" src={cover} alt="封面预览" />
+              <span className="md-body-small muted flex-1">将随教材一起保存到本机</span>
+            </div>
+          ) : null}
+        </div>
+        <div slot="actions">
+          <md-text-button onClick={() => setDialogOpen(false)}>取消</md-text-button>
+          <md-text-button onClick={saveBook}>保存并标记</md-text-button>
+        </div>
+      </md-dialog>
+    </div>
   );
 }
 

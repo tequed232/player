@@ -32,7 +32,7 @@
       },
       "topBox": {
         "w": 380,
-        "h": 174,
+        "h": 138,
         "x": 16,
         "y": 8,
         "bg": "rgb(228, 234, 229)",
@@ -42,7 +42,7 @@
         "w": 380,
         "h": 424,
         "x": 16,
-        "y": 207,
+        "y": 171,
         "bg": "rgb(30, 77, 84)",
         "radius": "28px"
       },
@@ -57,9 +57,9 @@
       "buttonGroup": null,
       "textField": {
         "w": 312,
-        "h": 56,
+        "h": 92,
         "x": 84,
-        "y": 678,
+        "y": 642,
         "bg": "rgba(0, 0, 0, 0)",
         "radius": "0px"
       },
@@ -70,7 +70,7 @@
         "fieldShape": "16px",
         "fieldOutline": "#28332B",
         "navContainerHeight": "80px",
-        "navContainerColor": "#EAEFEB",
+        "navContainerColor": "color-mix(in srgb, #EAEFEB 72%, transparent)",
         "navIndicatorWidth": "64px",
         "navIndicatorHeight": "32px",
         "navIndicatorColor": "#3A4B3F"
@@ -85,7 +85,7 @@
     "settings": {
       "list": {
         "w": 380,
-        "h": 463,
+        "h": 613,
         "x": 16,
         "y": 72
       },
@@ -116,8 +116,18 @@
           "radius": "8px"
         },
         {
-          "h": 88,
+          "h": 72,
           "y": 447,
+          "radius": "8px"
+        },
+        {
+          "h": 72,
+          "y": 522,
+          "radius": "8px"
+        },
+        {
+          "h": 88,
+          "y": 597,
           "radius": "8px 8px 28px 28px"
         }
       ],
@@ -127,12 +137,16 @@
           "y": 92
         },
         {
-          "w": 168,
-          "y": 309
+          "w": 52,
+          "y": 317
         },
         {
-          "w": 168,
-          "y": 384
+          "w": 182,
+          "y": 459
+        },
+        {
+          "w": 182,
+          "y": 534
         }
       ],
       "switchTrack": [
@@ -156,8 +170,8 @@
     "micProgressAfterStop": 0,
     "micLongSnackbar": "临时录制（松开后最多录制 10 秒）",
     "micCircleTemporary": 1,
-    "fieldLabel": "输入文本",
-    "questionModeLabel": "提问模式 · 回车发送",
+    "fieldLabel": "提问 · 回车发送",
+    "panelAfterLongPress": 0,
     "camera": {
       "w": 1440,
       "h": 1080,
@@ -165,7 +179,7 @@
     },
     "persisted": [
       {
-        "title": "照片记录 · 2026/09/19 21:50",
+        "title": "照片记录 · 2026/09/19 22:27",
         "images": 1
       }
     ],
@@ -209,13 +223,17 @@
       "error": "#B3261E",
       "springDuration": "283ms"
     },
-    "branchCount": 1,
-    "branchText": "\n这段\n问：这段记录讲了什么？\n当前记录里没有找到与该问题相关的内容。可以先在主页录制语音或导入图片，再针对内容提问。",
-    "sliderSupporting": "\n语音输入强度调整\n识别置信度门限：81%",
-    "sliderSupportingAfterReload": "\n语音输入强度调整\n识别置信度门限：81%",
+    "questionModeLabel": "提问 · 回车发送",
+    "mindmapLeaf": "问：军事理论用什么教材？ 当前记录里没有找到与该问题相关的内容。可以先在主页录制语音或导入图片，再针对内容提问。",
+    "qaFold": 1,
+    "qaCollapsed": 1,
+    "branchCount": 2,
+    "branchText": "\n军事\n问：军事理论用什么教材？\n当前记录里没有找到与该问题相关的内容。可以先在主页录制语音或导入图片，再针对内容提问。\n\n这段\n问：这段记录讲了什么？\n当前记录里没有找到与该问题相关的内容。可以先在主页录制语音或导入图片，再针对内容提问。",
+    "sliderSupporting": "\n语音输入强度调整\n识别置信度门限：80%（每 5% 一档）",
+    "sliderSupportingAfterReload": "\n语音输入强度调整\n识别置信度门限：80%（每 5% 一档）",
     "storedSettings": {
       "darkMode": false,
-      "speechIntensity": 81,
+      "speechIntensity": 80,
       "cameraSharpness": 1,
       "sttApiUrl": "",
       "sttApiKey": "",
@@ -224,7 +242,9 @@
       "qaApiUrl": "",
       "qaApiKey": "",
       "mapProvider": "",
-      "termStart": ""
+      "termStart": "",
+      "schoolName": "广东财贸职业学院",
+      "liquidGlass": true
     },
     "menuItems": "\n显示全部记录",
     "schedule": {
@@ -257,7 +277,10 @@
     },
     "monthDialog": "2026年8月\n第 1–1 周\n2026年9月\n第 1–5 周\n2026年10月\n第 5–9 周\n2026年11月\n第 9–14 周\n2026年12月\n第 14–18 周\n2027年1月\n第 18–21 周",
     "monthAfterPick": "\n2026年9月 · 9月1日 周二\n",
-    "courseDetail": "\n人工智能通识课\n\n\n周日 · 第3-4节 · 10:15-11:40\n\n赖燕璇\n\n2026信创03班\n\n3-3 周\n\n共 1 次课 · 9月 – 9月\n9月20日 周日\n\n3-402\n\n导航",
+    "textbookCard": " AIGC 应用：人工智能交互式通识教程 清华大学出版社  ",
+    "matchedCourse": "军事理论",
+    "matchedTitle": "军事理论与技能训练教程",
+    "textbookSnackbar": "已把《军事理论与技能训练教程》标记到《军事理论》",
     "pageBefore": 1,
     "pageAfter": 0,
     "collapsed": 1,
@@ -297,8 +320,8 @@
     "ok:mic circle: second tap stops recording",
     "ok:mic circle: long press starts the temporary recording",
     "shot:34-mic-temporary-recording",
-    "ok:input field: long press selects text, not question mode",
-    "shot:35-input-question-toggle",
+    "ok:input field: long press keeps native text selection",
+    "shot:35-input-long-press",
     "ok:open camera",
     "shot:06-camera",
     "ok:shutter creates a record",
@@ -326,7 +349,7 @@
     "shot:16-delete-dialog",
     "ok:cancel delete dialog",
     "ok:back to history from detail",
-    "ok:question mode is entered from the field icon",
+    "ok:input field is question only",
     "shot:17-question-mode",
     "ok:question creates a mind-map branch",
     "shot:18-question-answer",
@@ -340,8 +363,11 @@
     "shot:27-schedule-months",
     "ok:month / date picker recognises the schedule months",
     "ok:back to today after the month jump",
-    "ok:course detail opens from the board",
+    "ok:course detail shows the textbook from the cover library",
     "shot:22-schedule-course-detail",
+    "ok:cover text is matched to the right course",
+    "shot:36-textbook-match",
+    "ok:saving the textbook marks it on the course",
     "ok:close course detail",
     "ok:dragging the board pages through the week",
     "shot:23-schedule-paged",

@@ -327,6 +327,75 @@ export function mapProviderById(id: string): MapProvider | undefined {
   return MAP_PROVIDERS.find((provider) => provider.id === id);
 }
 
+/**
+ * 把教室拼成完整地址：校名 + 「xx栋xx号」。
+ * 「16-203」→「16栋203」；含楼/馆/室/校区的地址直接接在校名后面。
+ */
+export function formatAddress(room: string, schoolName: string): string {
+  const school = schoolName.trim();
+  const raw = room.replace(/\[\d+人\]/g, '').trim();
+  if (!raw) return school;
+  const building = /^(\d+)\s*[-–]\s*(\d+)$/.exec(raw);
+  let detail = raw;
+  if (building) detail = `${building[1]}栋${building[2]}号`;
+  else if (/^\d+[-–]/.test(raw)) detail = raw.replace(/^(\d+)\s*[-–]\s*/, '$1栋');
+  const alreadyCampus = /校区|大学|学院/.test(raw);
+  if (!school) return detail;
+  return alreadyCampus ? `${school}${detail}` : `${school} ${detail}`;
+}
+
+/**
+ * 各家的「App 内跳转」URI（Android/iOS 应用直接以 Activity 打开）。
+ * 桌面或不支持时会退回 https 网页地址。
+ */
+export function mapAppUri(providerId: string, address: string): string | null {
+  const encoded = encodeURIComponent(address);
+  switch (providerId) {
+    case 'amap':
+      return `androidamap://keywordNavi?sourceApplication=duofen-kebiao&keyword=${encoded}&style=2`;
+    case 'baidu':
+      return `baidumap://map/geocoder?address=${encoded}&src=webapp.duofen-kebiao`;
+    case 'tencent':
+      return `qqmap://map/search?keyword=${encoded}&referer=duofen-kebiao`;
+    case 'google':
+      return `google.navigation:q=${encoded}`;
+    case 'apple':
+      return `maps://?q=${encoded}`;
+    default:
+      return null;
+  }
+}
+
+function isMobileLike(): boolean {
+  return /Android|iPhone|iPad|iPod|HarmonyOS|Mobile/i.test(navigator.userAgent);
+}
+
+/**
+ * 打开地图：移动端先尝试直接唤起地图 App（Activity / URL Scheme），
+ * 1.2 秒内没有切走就退回网页地址；桌面直接开网页。
+ */
+export function openMapLink(provider: MapProvider, address: string): 'app' | 'web' {
+  const web = provider.url(address);
+  const app = mapAppUri(provider.id, address);
+  if (!app || !isMobileLike()) {
+    window.open(web, '_blank', 'noopener,noreferrer');
+    return 'web';
+  }
+  let fellBack = false;
+  const timer = window.setTimeout(() => {
+    fellBack = true;
+    window.open(web, '_blank', 'noopener,noreferrer');
+  }, 1200);
+  const onHide = () => {
+    if (fellBack) return;
+    window.clearTimeout(timer);
+    document.removeEventListener('visibilitychange', onHide);
+  };
+  document.addEventListener('visibilitychange', onHide);
+  window.location.href = app;
+  return 'app';
+}
+
 /* -------------------------------------------------------------- importers -- */
 /* The importers run in the browser: no Node APIs, only TextDecoder/DOMParser. */
 

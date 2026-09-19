@@ -1,4 +1,4 @@
-/** Global application state: settings, records, live draft, snackbar and theme. */
+﻿/** Global application state: settings, records, live draft, snackbar and theme. */
 import {
   createContext,
   useCallback,
@@ -16,6 +16,7 @@ import { applyRoles, buildThemes, detectSeed, type SeedSource } from '../theme/p
 import { formatDateTime, uid } from '../lib/utils';
 import { EMBEDDED_SCHEDULE } from '../data/schedule';
 import type { ScheduleData } from '../lib/schedule';
+import { libraryTextbook, type Textbook } from '../lib/textbooks';
 
 /** Temporary highlight applied when the filter screen jumps back to the schedule. */
 export interface ScheduleHighlight {
@@ -66,6 +67,9 @@ interface AppStateValue {
   setSchedule: (data: ScheduleData | null) => void;
   scheduleHighlight: ScheduleHighlight | null;
   setScheduleHighlight: (highlight: ScheduleHighlight | null) => void;
+  /** 课程名 → 教材（内置教材库 + 用户识别/填写的覆盖） */
+  textbooks: Record<string, Textbook>;
+  setTextbook: (courseName: string, textbook: Textbook | null) => void;
   updateSettings: (patch: Partial<AppSettings>, options?: UpdateOptions) => void;
   createRecord: (input: RecordInput) => Promise<NoteRecord>;
   updateRecord: (id: string, patch: Partial<NoteRecord>) => Promise<void>;
@@ -99,6 +103,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [seed] = useState<SeedSource>(() => detectSeed());
   const theme = useMemo(() => buildThemes(seed), [seed]);
   const [importedSchedule, setImportedSchedule] = useState<ScheduleData | null>(null);
+  const [textbookOverrides, setTextbookOverrides] = useState<Record<string, Textbook>>({});
   const [scheduleHighlight, setScheduleHighlight] = useState<ScheduleHighlight | null>(null);
 
   const settingsRef = useRef(settings);
@@ -110,17 +115,19 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [storedSettings, storedRecords, storedDraft, storedSchedule] = await Promise.all([
+      const [storedSettings, storedRecords, storedDraft, storedSchedule, storedTextbooks] = await Promise.all([
         db.readSettings(),
         db.getAllRecords(),
         db.readKv<Draft>(db.DRAFT_KEY),
         db.readKv<ScheduleData>(db.SCHEDULE_KEY),
+        db.readKv<Record<string, Textbook>>(db.TEXTBOOK_KEY),
       ]);
       if (cancelled) return;
       setSettings({ ...DEFAULT_SETTINGS, ...storedSettings });
       setRecords(storedRecords);
       if (storedDraft) setDraftState({ ...EMPTY_DRAFT, ...storedDraft, interim: '' });
       if (storedSchedule?.periods?.length) setImportedSchedule(storedSchedule);
+      if (storedTextbooks) setTextbookOverrides(storedTextbooks);
       setReady(true);
     })();
     return () => {
@@ -138,6 +145,35 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
     setImportedSchedule(data);
     void db.writeKv(db.SCHEDULE_KEY, data);
+  }, []);
+
+  /** 教材：内置教材库 + 用户在界面上识别/填写/移除的结果 */
+  const textbooks = useMemo(() => {
+    const merged: Record<string, Textbook> = {};
+    for (const period of schedule.periods) {
+      for (const day of period.days) {
+        for (const course of day) {
+          if (merged[course.name]) continue;
+          const fromLibrary = libraryTextbook(course.name);
+          if (fromLibrary) merged[course.name] = fromLibrary;
+        }
+      }
+    }
+    return { ...merged, ...textbookOverrides };
+  }, [schedule, textbookOverrides]);
+
+  const setTextbook = useCallback<AppStateValue['setTextbook']>((courseName, textbook) => {
+    setTextbookOverrides((value) => {
+      const next = { ...value };
+      if (!textbook) {
+        // 移除：写一个显式的空记录，避免又回落到内置教材
+        next[courseName] = { course: courseName, title: '', publisher: '', source: 'manual' };
+      } else {
+        next[courseName] = { ...textbook, course: courseName };
+      }
+      void db.writeKv(db.TEXTBOOK_KEY, next);
+      return next;
+    });
   }, []);
 
   /* --------------------------------------------------------- persistence */
@@ -310,6 +346,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setSchedule,
       scheduleHighlight,
       setScheduleHighlight,
+      textbooks,
+      setTextbook,
       updateSettings,
       createRecord,
       updateRecord,
@@ -338,6 +376,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setSchedule,
       scheduleHighlight,
       setScheduleHighlight,
+      textbooks,
+      setTextbook,
       updateSettings,
       createRecord,
       updateRecord,

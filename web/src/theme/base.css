@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    Base layout: browser stage, 412x892dp portrait phone frame, screen stack and
    Material 3 Expressive screen transitions.
    ========================================================================= */
@@ -117,97 +117,44 @@ body {
 }
 
 /* ------------------------------------------------------- screen transitions */
-/* push: incoming slides in from the right */
-@keyframes screen-slide-in {
+/* ------------------------------------------------------- screen transitions */
+/* 统一为「浮动」过渡：新页面从下方轻微浮起并淡入，返回时反向浮下（同一套弹簧） */
+@keyframes float-in {
   from {
-    transform: translate3d(100%, 0, 0);
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes screen-slide-out {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(100%, 0, 0);
-  }
-}
-
-@keyframes screen-fade-in {
-  from {
+    transform: translate3d(0, 26px, 0) scale(0.94);
     opacity: 0;
   }
   to {
+    transform: translate3d(0, 0, 0) scale(1);
     opacity: 1;
   }
 }
 
-@keyframes screen-fade-out {
+@keyframes float-out {
   from {
+    transform: translate3d(0, 0, 0) scale(1);
     opacity: 1;
   }
   to {
+    transform: translate3d(0, 18px, 0) scale(0.96);
     opacity: 0;
   }
 }
 
-@keyframes screen-zoom-in {
-  from {
-    transform: scale(0.42);
-    opacity: 0;
-    border-radius: 48px;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-    border-radius: 0;
-  }
-}
-
-@keyframes screen-zoom-out {
-  from {
-    transform: scale(1);
-    opacity: 1;
-    border-radius: 0;
-  }
-  to {
-    transform: scale(0.42);
-    opacity: 0;
-    border-radius: 48px;
-  }
-}
-
-.screen.enter-slide {
-  animation: screen-slide-in var(--md-sys-motion-spring-spatial-default-duration, 500ms)
+.screen.enter-slide,
+.screen.enter-fade,
+.screen.enter-zoom {
+  animation: float-in var(--md-sys-motion-spring-spatial-default-duration, 500ms)
     var(--md-sys-motion-spring-spatial-default, cubic-bezier(0.2, 0, 0, 1)) both;
 }
-.screen.exit-slide {
-  animation: screen-slide-out var(--md-sys-motion-spring-spatial-fast-duration, 350ms)
+
+.screen.exit-slide,
+.screen.exit-fade,
+.screen.exit-zoom {
+  animation: float-out var(--md-sys-motion-spring-spatial-fast-duration, 350ms)
     var(--md-sys-motion-spring-spatial-fast, cubic-bezier(0.4, 0, 0.6, 1)) both;
   pointer-events: none;
 }
-.screen.enter-fade {
-  animation: screen-fade-in var(--md-sys-motion-spring-effects-default-duration, 200ms)
-    var(--md-sys-motion-spring-effects-default, ease-out) both;
-}
-.screen.exit-fade {
-  animation: screen-fade-out var(--md-sys-motion-spring-effects-slow-duration, 300ms)
-    var(--md-sys-motion-spring-effects-slow, ease-in) both;
-  pointer-events: none;
-}
-.screen.enter-zoom {
-  animation: screen-zoom-in var(--md-sys-motion-spring-zoom-duration, 600ms)
-    var(--md-sys-motion-spring-zoom, cubic-bezier(0.2, 0, 0, 1)) both;
-}
-.screen.exit-zoom {
-  animation: screen-zoom-out var(--md-sys-motion-spring-zoom-duration, 600ms)
-    var(--md-sys-motion-spring-zoom, cubic-bezier(0.2, 0, 0, 1)) both;
-  pointer-events: none;
-}
-
 /* ------------------------------------------------------------------ utils */
 .row {
   display: flex;
@@ -286,4 +233,140 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
   }
+}
+
+/* ------------------------------------------------------------ splash ------- */
+.splash {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  transition:
+    opacity 300ms linear,
+    transform var(--md-sys-motion-spring-spatial-default-duration, 500ms)
+      var(--md-sys-motion-spring-spatial-default, cubic-bezier(0.2, 0, 0, 1));
+}
+
+.splash.leaving {
+  opacity: 0;
+  transform: translate3d(0, -18px, 0) scale(0.98);
+  pointer-events: none;
+}
+
+.splash-mark {
+  width: 96px;
+  height: 96px;
+  border-radius: 28px;
+  display: grid;
+  place-items: center;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  margin-bottom: 8px;
+  animation: splash-pop var(--md-sys-motion-spring-bounce-duration, 700ms)
+    var(--md-sys-motion-spring-bounce, ease-out) both;
+}
+
+@keyframes splash-pop {
+  from {
+    transform: scale(0.7) translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.splash-title {
+  color: var(--md-sys-color-on-surface);
+}
+
+.splash-sub,
+.splash-hint {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.splash-loading {
+  margin-top: 18px;
+}
+
+.splash-loading md-circular-progress {
+  --md-circular-progress-size: 36px;
+  --md-circular-progress-active-indicator-color: var(--md-sys-color-primary);
+}
+
+/* 进入应用时：主页组件从下向上依次弹出，与开屏动画自然衔接 */
+.phone.entering .screen .screen-content > *,
+.phone.entering .screen .home-footer,
+.phone.entering .screen .app-bar {
+  animation: rise-in var(--md-sys-motion-spring-spatial-default-duration, 500ms)
+    var(--md-sys-motion-spring-spatial-default, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+
+.phone.entering .screen .screen-content > *:nth-child(1) { animation-delay: 20ms; }
+.phone.entering .screen .screen-content > *:nth-child(2) { animation-delay: 70ms; }
+.phone.entering .screen .screen-content > *:nth-child(3) { animation-delay: 120ms; }
+.phone.entering .screen .screen-content > *:nth-child(4) { animation-delay: 170ms; }
+.phone.entering .screen .screen-content > *:nth-child(5) { animation-delay: 220ms; }
+.phone.entering .screen .screen-content > *:nth-child(6) { animation-delay: 270ms; }
+.phone.entering .screen .home-footer { animation-delay: 200ms; }
+.phone.entering .screen .app-bar { animation-delay: 0ms; }
+.phone.entering .screen .nav-bar {
+  animation: rise-in var(--md-sys-motion-spring-spatial-default-duration, 500ms)
+    var(--md-sys-motion-spring-spatial-default, cubic-bezier(0.2, 0, 0, 1)) 260ms both;
+}
+
+@keyframes rise-in {
+  from {
+    transform: translate3d(0, 28px, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------ liquid glass nav bar ----- */
+/* 液态玻璃：模糊 + 饱和度提升 + 边缘高光，颜色仍来自 surfaceContainer 角色 */
+.nav-bar.glass md-navigation-bar {
+  --md-navigation-bar-container-color: color-mix(in srgb, var(--md-sys-color-surface-container) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  position: relative;
+}
+
+.nav-bar.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-top: 1px solid color-mix(in srgb, var(--md-sys-color-outline-variant) 35%, transparent);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--md-sys-color-surface) 55%, transparent),
+    transparent 60%
+  );
+}
+
+/* 玻璃的折射高光：用 SVG 位移滤镜做一个柔和的光带（不引入外部依赖） */
+.nav-bar.glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  filter: url(#liquid-glass-refraction);
+  opacity: 0.35;
+  background: radial-gradient(
+    120% 80% at 20% 0%,
+    color-mix(in srgb, var(--md-sys-color-primary) 22%, transparent),
+    transparent 70%
+  );
 }

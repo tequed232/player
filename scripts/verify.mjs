@@ -260,7 +260,8 @@ try {
   });
 
   await step('api edit screen', async () => {
-    await clickTop('md-list-item', 2);
+    // 设置列表：0 深色模式 / 1 默认地图 / 2 学校名称 / 3 液态玻璃 / 4 API编辑
+    await clickTop('md-list-item', 4);
     await page.waitForTimeout(1000);
   });
   await shot('05-api-edit');
@@ -353,13 +354,17 @@ try {
   });
   await shot('34-mic-temporary-recording');
 
-  await step('input field: long press selects text, not question mode', async () => {
+  await step('input field: long press keeps native text selection', async () => {
     // 先结束临时录制
     await top().locator('.mic-circle').click({ force: true, timeout: 7000 }).catch(() => undefined);
     await page.waitForTimeout(800);
     const holder = top().locator('.home-input');
     const box = await holder.boundingBox();
     if (!box) throw new Error('input not found');
+    const before = await top()
+      .locator('md-outlined-text-field')
+      .first()
+      .evaluate((element) => element.label ?? element.getAttribute('label'));
     await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
     await page.mouse.down();
     await page.waitForTimeout(800);
@@ -369,25 +374,12 @@ try {
       .locator('md-outlined-text-field')
       .first()
       .evaluate((element) => element.label ?? element.getAttribute('label'));
-    if (String(extra.fieldLabel).includes('提问')) throw new Error('the field long press must not switch to question mode');
-    // 提问模式改由输入框右侧的图标按钮进入，确认仍可用
-    await top()
-      .locator('.home-input md-icon-button')
-      .first()
-      .click({ force: true, timeout: 7000 });
-    await page.waitForTimeout(900);
-    extra.questionModeLabel = await top()
-      .locator('md-outlined-text-field')
-      .first()
-      .evaluate((element) => element.label ?? element.getAttribute('label'));
-    if (!String(extra.questionModeLabel).includes('提问')) throw new Error('question mode button did not work');
-    await top()
-      .locator('.home-input md-icon-button')
-      .last()
-      .click({ force: true, timeout: 7000 });
-    await page.waitForTimeout(600);
+    if (extra.fieldLabel !== before) throw new Error('the field long press must not change the field mode');
+    // 长按也不应打开全屏面板
+    extra.panelAfterLongPress = await top().locator('.sheet-panel').count();
+    if (extra.panelAfterLongPress) throw new Error('long press must not open the panel');
   });
-  await shot('35-input-question-toggle');
+  await shot('35-input-long-press');
 
   await step('open camera', async () => {
     await clickTop('md-filled-button', 0);
@@ -517,20 +509,33 @@ try {
     await page.waitForTimeout(1200);
   });
 
-  await step('question mode is entered from the field icon', async () => {
+  await step('input field is question only', async () => {
     await clickTop('md-navigation-tab', 0);
     await page.waitForTimeout(1000);
-    // 长按输入框现在是原生选中文本，提问模式改由右侧图标按钮进入
-    await top()
-      .locator('.home-input md-icon-button')
-      .first()
-      .click({ force: true, timeout: 7000 });
-    await page.waitForTimeout(800);
+    // 语音转文字已由圆圈负责，输入框只用来提问
     extra.questionModeLabel = await top()
       .locator('md-outlined-text-field')
       .first()
       .evaluate((element) => element.label ?? element.getAttribute('label'));
-    if (!String(extra.questionModeLabel).includes('提问')) throw new Error('question mode did not activate');
+    if (!String(extra.questionModeLabel).includes('提问')) {
+      throw new Error(`the input field should be question only, got "${extra.questionModeLabel}"`);
+    }
+    await top().locator('.home-input md-outlined-text-field input').first().fill('军事理论用什么教材？');
+    await page.waitForTimeout(300);
+    await top().locator('.home-input md-outlined-text-field input').first().press('Enter');
+    await page.waitForTimeout(1400);
+    // 首页显示思维导图分支；折叠的回答在总结面板里
+    extra.mindmapLeaf = (await top().locator('.mindmap-leaf').last().innerText()).replace(/\s+/g, ' ');
+    if (!extra.mindmapLeaf.includes('问：')) throw new Error(`question not added to the mind map: ${extra.mindmapLeaf}`);
+    await clickTop('.container-box.tertiary');
+    await waitTop('.sheet-panel');
+    await page.waitForTimeout(800);
+    extra.qaFold = await top().locator('.qa-entry').count();
+    extra.qaCollapsed = await top().locator('.qa-preview').count();
+    if (!extra.qaFold) throw new Error('the answer was not added as a collapsible entry');
+    if (!extra.qaCollapsed) throw new Error('answers should start collapsed');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(600);
   });
   await shot('17-question-mode');
 
@@ -557,7 +562,7 @@ try {
     await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2, { steps: 12 });
     await page.mouse.up();
     await page.waitForTimeout(900);
-    extra.sliderSupporting = await top().locator('md-list-item').nth(3).innerText();
+    extra.sliderSupporting = await top().locator('md-list-item').nth(5).innerText();
   });
   await shot('19-slider-drag');
 
@@ -566,7 +571,7 @@ try {
     await page.waitForTimeout(1600);
     await clickTop('md-navigation-tab', 3);
     await page.waitForTimeout(1000);
-    extra.sliderSupportingAfterReload = await top().locator('md-list-item').nth(3).innerText();
+    extra.sliderSupportingAfterReload = await top().locator('md-list-item').nth(5).innerText();
     await page.waitForTimeout(200);
   });
 
@@ -650,8 +655,7 @@ try {
     await page.waitForTimeout(900);
   });
 
-  await step('course detail opens from the board', async () => {
-    // click a chip on the *visible* page: the other page is translated off-screen
+  await step('course detail shows the textbook from the cover library', async () => {
     const activePage = await page.evaluate(() =>
       Array.from(document.querySelectorAll('.board-dot-pill')).findIndex((dot) => dot.classList.contains('active')),
     );
@@ -662,10 +666,42 @@ try {
       .first()
       .click({ timeout: 7000 });
     await waitTop('.sheet-panel');
-    await page.waitForTimeout(700);
-    extra.courseDetail = await top().locator('.sheet-panel').innerText();
+    await page.waitForTimeout(800);
+    extra.textbookCard = (await top().locator('.textbook-card').first().innerText()).replace(/\s+/g, ' ');
+    if (!/出版社|杂志社/.test(extra.textbookCard)) {
+      throw new Error(`textbook not shown in the course detail: ${extra.textbookCard}`);
+    }
   });
   await shot('22-schedule-course-detail');
+
+  await step('cover text is matched to the right course', async () => {
+    await top().locator('md-outlined-button:has-text("手动填写")').click({ timeout: 7000 });
+    await page.waitForTimeout(800);
+    // 封面文字输入框是 textarea（多行）
+    const area = top().locator('md-dialog[open] md-outlined-text-field textarea').first();
+    await area.click({ force: true });
+    await area.type('军事理论与技能训练教程 国防科技大学出版社', { delay: 12 });
+    await page.waitForTimeout(400);
+    await top().locator('md-dialog[open] md-text-button:has-text("按文字匹配课程")').click({ timeout: 7000 });
+    await page.waitForTimeout(900);
+    extra.matchedCourse = await top().locator('md-dialog[open] select').inputValue();
+    extra.matchedTitle = await top()
+      .locator('md-dialog[open] md-outlined-text-field')
+      .nth(1)
+      .evaluate((element) => element.value);
+    if (extra.matchedCourse !== '军事理论') throw new Error(`matched ${extra.matchedCourse} instead of 军事理论`);
+    if (!String(extra.matchedTitle).includes('军事理论')) throw new Error(`title not filled: ${extra.matchedTitle}`);
+  });
+  await shot('36-textbook-match');
+
+  await step('saving the textbook marks it on the course', async () => {
+    await top().locator('md-dialog[open] md-text-button:has-text("保存并标记")').click({ timeout: 7000 });
+    await page.waitForTimeout(1200);
+    extra.textbookSnackbar = (await page.locator('.snackbar').first().innerText()).replace(/\s+/g, ' ');
+    if (!extra.textbookSnackbar.includes('军事理论')) throw new Error(`unexpected snackbar: ${extra.textbookSnackbar}`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(700);
+  });
 
   await step('close course detail', async () => {
     await page.keyboard.press('Escape');

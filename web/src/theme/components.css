@@ -1075,3 +1075,87 @@ md-circular-progress {
   background: var(--md-sys-color-error-container);
   color: var(--md-sys-color-on-error-container);
 }
+
+/* ------------------------------------------------- QA 折叠（回答默认收起） -- */
+.qa-entry {
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container-low);
+  overflow: hidden;
+}
+
+.qa-entry-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-brand);
+  text-align: left;
+  cursor: pointer;
+}
+
+.qa-entry .qa-answer {
+  margin: 0 8px 8px;
+}
+
+.qa-preview {
+  padding: 0 12px 10px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* --------------------------------------------- 长内容不再溢出容器/输入框 --- */
+md-outlined-text-field,
+md-filled-text-field,
+md-list-item,
+md-dialog {
+  max-width: 100%;
+}
+
+.transcript-text,
+.qa-answer,
+.qa-question,
+.card-supporting,
+.about-note,
+.snackbar,
+.textbook-card,
+md-list-item::part(headline),
+md-list-item::part(supporting-text) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* 输入框内的长 URL / 长单词同样折行，避免跑出边框 */
+md-outlined-text-field,
+md-filled-text-field {
+  --md-outlined-text-field-input-text-type: 400 16px/24px var(--md-ref-typeface-brand);
+}
+
+.textbook-card .col {
+  min-width: 0;
+}
+
+.about-note {
+  padding: 12px;
+  border-radius: 20px;
+  background: var(--md-sys-color-surface-container-low);
+}
+
+.about-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.about-mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+}

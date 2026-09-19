@@ -10,7 +10,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="四分 · M3 Expressive"
+        android:label="多分课表"
         android:supportsRtl="true"
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.M3Expressive">

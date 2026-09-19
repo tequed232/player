@@ -1,4 +1,4 @@
-/** Shared domain types. */
+﻿/** Shared domain types. */
 
 export interface QaEntry {
   id: string;
@@ -51,6 +51,10 @@ export interface AppSettings {
   mapProvider: string;
   /** teaching week 1 Monday, yyyy-mm-dd; '' = use the value embedded in the schedule */
   termStart: string;
+  /** 地图导航时拼在教室前面的学校名称，例如「广东财贸职业学院 16栋203」 */
+  schoolName: string;
+  /** 底边栏使用液态玻璃（liquid glass）效果 */
+  liquidGlass: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -65,6 +69,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   qaApiKey: '',
   mapProvider: '',
   termStart: '',
+  schoolName: '广东财贸职业学院',
+  liquidGlass: true,
 };
 
 /** The live capture/draft session shown on the Home screen. */

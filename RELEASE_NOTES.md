@@ -1,12 +1,12 @@
 ﻿# v1.0.3 — 内嵌课表屏幕 + Android 16 / ColorOS 流体云 构建
 
-本次新增 **课表**（四分课表）屏幕：把学校教务系统导出的 `学生课表.doc` 解析后**内嵌进应用**，
+本次新增 **课表**（多分课表）屏幕：把学校教务系统导出的 `学生课表.doc` 解析后**内嵌进应用**，
 并在 Web 与 Android 两端都提供独立的课表屏幕；Android 端同时升级到 **Android 16 (API 36)**，
 接入 **Android 16 Live Updates / ColorOS 流体云** 实况通知。
 
 ## 在线体验 / 下载
 
-- **Web 应用（GitHub Pages）**：https://tequed232.github.io/player/
+- **Web 应用（GitHub Pages）**：https://tequed232.github.io/duofen-kebiao/
 - **Android APK**：本 Release 附件 `m3-expressive-android-1.0.3.apk`（arm64-v8a，适配天玑 9400 / ColorOS 16）
 
 ## 本次新增

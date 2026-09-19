@@ -1,0 +1,49 @@
+# 多分课表 · 反向代理（Caddy）
+# 结构：客户端 → Caddy(443) → Anubis(8080) → GitHub Pages 源站
+# Caddy 只负责 TLS 与基础限速/日志；所有反爬校验交给 Anubis。
+# {$SITE_ADDRESS} 由 docker-compose.yml 的环境变量注入。
+
+{
+	email admin@example.com
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# 访问日志（便于和 Anubis 指标对照排查）
+	log {
+		output stdout
+		format console
+	}
+
+	# 简单限速：同一 IP 每分钟 300 次请求，超过后 429（Anubis 之前的第一道闸）
+	rate_limit {
+		zone anubis_per_ip {
+			match {
+				path /*
+			}
+			key {remote_host}
+			events 300
+			window 1m
+		}
+	}
+
+	# 安全响应头（静态站点没有服务端，统一在这里加）
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "SAMEORIGIN"
+		-Server
+	}
+
+	# 交给 Anubis
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

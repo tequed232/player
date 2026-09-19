@@ -1,5 +1,5 @@
 /**
- * 课表 (schedule) - "四分课表"
+ * 课表 (schedule) - "多分课表"
  *
  * The schedule is embedded in the app (web/src/data/schedule.ts, generated from the
  * school's 学生课表.doc) and can be replaced by an imported file/pasted text.
@@ -28,8 +28,10 @@ import {
   addDays,
   activeWeekdays,
   coursesOfDay,
+  formatAddress,
   formatMonthDay,
   formatMonthDayWeekday,
+  openMapLink,
   mapProviderById,
   maxWeekOf,
   parseISODate,
@@ -137,11 +139,16 @@ export default function ScheduleScreen() {
     setDetailOpen(true);
   };
 
-  const openNavigation = (address: string, course: ScheduleCourse) => {
+  const openNavigation = (room: string, course: ScheduleCourse) => {
+    // 校名 + xx栋xx号：导航时给地图更完整的地址
+    const address = formatAddress(room, settings.schoolName);
     const provider = mapProviderById(settings.mapProvider);
     if (provider) {
-      window.open(provider.url(address), '_blank', 'noopener,noreferrer');
-      showSnackbar({ message: `已在${provider.label}中搜索「${address}」`, duration: 4000 });
+      const mode = openMapLink(provider, address);
+      showSnackbar({
+        message: mode === 'app' ? `正在唤起${provider.label}…` : `已在${provider.label}中搜索「${address}」`,
+        duration: 4000,
+      });
       return;
     }
     setMapChooser({ address, course });
@@ -173,7 +180,7 @@ export default function ScheduleScreen() {
     <>
       <div className="screen-inner">
         <TopAppBar
-          title="四分课表"
+          title="多分课表"
           scrolled={scrolled}
           leading={<MdIconButton icon="search_check_2" label="筛选课程" onClick={() => nav.push('scheduleFilter', {}, 'slide')} />}
           actions={
@@ -306,8 +313,11 @@ export default function ScheduleScreen() {
           }
           setMapChooser(null);
           if (provider && address) {
-            window.open(provider.url(address), '_blank', 'noopener,noreferrer');
-            showSnackbar({ message: `已在${provider.label}中搜索「${address}」`, duration: 4000 });
+            const mode = openMapLink(provider, address);
+            showSnackbar({
+              message: mode === 'app' ? `正在唤起${provider.label}…` : `已在${provider.label}中搜索「${address}」`,
+              duration: 4000,
+            });
           }
         }}
       />

@@ -1,6 +1,7 @@
-/** Layout primitives: app bar, navigation bar, section header, empty state, chips, images. */
+﻿/** Layout primitives: app bar, navigation bar, section header, empty state, chips, images. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { MdIcon, MdIconButton } from './md';
+import { useAppState } from '../state/AppState';
 
 /* ------------------------------------------------------------- app bar --- */
 
@@ -61,6 +62,7 @@ const TABS: { id: NavTabId; label: string; icon: string }[] = [
 
 export function AppNavBar({ active, onSelect }: { active: NavTabId; onSelect: (tab: NavTabId) => void }) {
   const ref = useRef<HTMLElement & { activeIndex: number }>(null);
+  const { settings } = useAppState();
   const activeIndex = Math.max(
     0,
     TABS.findIndex((tab) => tab.id === active),
@@ -72,7 +74,7 @@ export function AppNavBar({ active, onSelect }: { active: NavTabId; onSelect: (t
   }, [activeIndex]);
 
   return (
-    <nav className="nav-bar">
+    <nav className={['nav-bar', settings.liquidGlass ? 'glass' : ''].join(' ').trim()}>
       <md-navigation-bar ref={ref} aria-label="主导航">
         {TABS.map((tab) => (
           <md-navigation-tab

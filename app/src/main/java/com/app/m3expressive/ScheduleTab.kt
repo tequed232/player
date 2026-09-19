@@ -161,7 +161,7 @@ fun ScheduleScreen() {
             Icon(Icons.Outlined.CalendarMonth, null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
-                Text("四分课表", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("多分课表", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
                     "${schedule.term} · 第 $week 教学周 · ${schedule.owner}",
                     style = MaterialTheme.typography.bodySmall,

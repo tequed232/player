@@ -1,4 +1,5 @@
-/** Record card, carousel, mind map and the QA / key point views. */
+﻿/** Record card, carousel, mind map and the QA / key point views. */
+import { useState } from 'react';
 import type { NoteRecord, QaBranch } from '../lib/types';
 import { relativeTime, truncate } from '../lib/utils';
 import { MdIcon } from './md';
@@ -177,37 +178,62 @@ export function MindMapView({
   );
 }
 
-/** QA branches with the answers rendered in the tertiary (purple) container role. */
+/**
+ * QA branches with the answers rendered in the tertiary (purple) container role.
+ * 回答默认折叠：标题行显示问题，点开才展开原文，避免长回答刷屏。
+ */
 export function QaBranchList({ branches }: { branches: QaBranch[] }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const toggle = (id: string) => setOpen((value) => ({ ...value, [id]: !value[id] }));
+
   if (!branches.length) {
     return (
       <div className="md-body-medium hint">
-        还没有提问记录。长按主页的“长按输入文本”输入框即可针对总结内容与语音转文字提问。
+        还没有提问记录。在主页底部输入框输入问题并回车，回答会以紫色框显示在这里。
       </div>
     );
   }
+
   return (
     <div className="col gap-16">
       {branches.map((branch) => (
         <div className="col gap-8" key={branch.id}>
           <div className="row gap-8">
             <MdIcon name="account_tree" size={18} />
-            <span className="md-title-small-emphasized">{branch.topic}</span>
+            <span className="md-title-small-emphasized flex-1">{branch.topic}</span>
+            <span className="md-label-small muted">{branch.entries.length} 条回答</span>
           </div>
-          {branch.entries.map((entry) => (
-            <div className="col gap-4" key={entry.id}>
-              <div className="qa-question row gap-8 md-body-medium">
-                <MdIcon name="help" size={16} />
-                <span>{entry.question}</span>
+          {branch.entries.map((entry) => {
+            const expanded = Boolean(open[entry.id]);
+            return (
+              <div className="qa-entry" key={entry.id}>
+                <button
+                  type="button"
+                  className="qa-entry-header"
+                  onClick={() => toggle(entry.id)}
+                  aria-expanded={expanded}
+                >
+                  <MdIcon name="help" size={16} />
+                  <span className="qa-question md-body-medium flex-1">{entry.question}</span>
+                  <MdIcon name={expanded ? 'expand_less' : 'expand_more'} size={20} />
+                </button>
+                {expanded ? (
+                  <div className="qa-answer md-body-medium">
+                    <div className="md-label-medium mb-8" style={{ opacity: 0.85 }}>
+                      {entry.source === 'api'
+                        ? '来自问答接口'
+                        : entry.source === 'local'
+                          ? '来自本次记录内容'
+                          : '未找到相关内容'}
+                    </div>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{entry.answer}</div>
+                  </div>
+                ) : (
+                  <div className="qa-preview md-body-small">{truncate(entry.answer.replace(/\s+/g, ' '), 42)}</div>
+                )}
               </div>
-              <div className="qa-answer md-body-medium">
-                <div className="md-label-medium mb-8" style={{ opacity: 0.85 }}>
-                  {entry.source === 'api' ? '来自问答接口' : entry.source === 'local' ? '来自本次记录内容' : '未找到相关内容'}
-                </div>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{entry.answer}</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ))}
     </div>

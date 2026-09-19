@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Create a GitHub release and upload assets using the REST API.
  *
  * The token is read from GITHUB_TOKEN / GH_TOKEN (never printed). In this workspace it
@@ -45,7 +45,7 @@ if (!token) {
   process.exit(2);
 }
 
-const repo = args.repo ?? 'tequed232/player';
+const repo = args.repo ?? 'tequed232/duofen-kebiao';
 const tag = args.tag;
 if (!tag) {
   console.error('--tag is required');

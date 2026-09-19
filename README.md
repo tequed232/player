@@ -1,9 +1,9 @@
-﻿# M3 Expressive · 语音图片笔记
+﻿# 多分课表
 
 Material 3 Expressive 风格的移动端 Web 应用：**实时语音转文字 + 图片转文字总结 + 历史记录 + 设置/API 配置**。
 目标形态为竖屏手机 **412 × 892dp**，浏览器内运行（`dist/` 为可直接部署的 production build）。
 
-**在线体验：<https://tequed232.github.io/player/>** · **发布：<https://github.com/tequed232/player/releases/tag/v1.0.2>**
+**在线体验：<https://tequed232.github.io/duofen-kebiao/>** · **发布：<https://github.com/tequed232/duofen-kebiao/releases/tag/v1.0.2>**
 
 > 仓库同时包含一份 Kotlin/Compose 的 Android 实现（`app/`，Gradle 工程）。本 README 描述 **Web 实现**。
 
@@ -39,7 +39,7 @@ node --use-system-ca scripts/github-release.mjs --tag v1.0.2 --target main `
 线上部署同样用 `scripts/verify.mjs` 回归：
 
 ```powershell
-$env:OUT_DIR='screenshots-live'; node scripts/verify.mjs https://tequed232.github.io/player/
+$env:OUT_DIR='screenshots-live'; node scripts/verify.mjs https://tequed232.github.io/duofen-kebiao/
 ```
 
 ---
@@ -78,7 +78,7 @@ dist/
 | `settings` | 设置 | 6 项列表（3dp 间距、28dp 外圆角 / 8dp 内圆角）+ 叠放其上的开关与两个 Expressive 滑块 + 默认跳转地图、已保存消息条（撤销） |
 | `record` | 屏幕 5 · 记录详情 | 图片多浏览轮播 → 全屏查看器（左右滑动 / 下滑关闭）、文字要点容器 → 可滚动全屏面板、顶部返回 / 编辑 / 删除（确认对话框） |
 | `apiEdit` | API 修改 | 语音转文字 / 图片转文字 / 问答 API 与密钥、380×380 测试图片占位、刷新（重新载入）与删除全部 API（确认对话框）、保存后消息条 + 撤销 |
-| `schedule` | 课表 · 四分课表 | 内嵌课表 + 四日表格（上午/中午/下午/晚上时间轴、左右拖动跟手切换日期窗口）、点击课程查看老师/时间/地点、点击地点启动地图导航、课表数据导入面板 |
+| `schedule` | 课表 · 多分课表 | 内嵌课表 + 四日表格（上午/中午/下午/晚上时间轴、左右拖动跟手切换日期窗口）、点击课程查看老师/时间/地点、点击地点启动地图导航、课表数据导入面板 |
 | `scheduleFilter` | 筛选 | 老师 / 课程 / 地点 / 时间 四个标签检索，结果按 课程·老师·地点 三列排列，点击回到课表并高亮 5 秒 |
 | `blank` | 屏幕 7 | 按草图保留的空屏幕 |
 
@@ -106,7 +106,7 @@ dist/
 * **API 保存后先试用**：在 API 修改页保存了语音转文字API地址后，会立即弹出「录音试用语音转文字API」对话框：
   录制最长 15 秒（带计时、进度条与实时音量电平）→ 直接调用该接口 → 显示识别结果；失败给出具体原因，可重新录制。
 * **快速开始点语音**：主页麦克风按钮点下后，容器内出现进度条（不确定进度 + 计时 + 停止按钮），
-  同时发布**系统通知**（"正在录音 · 四分"，每秒刷新计时），停止后提示识别完成并自动收起——与 Android 端流体云卡片行为一致。
+  同时发布**系统通知**（"正在录音 · 多分课表"，每秒刷新计时），停止后提示识别完成并自动收起——与 Android 端流体云卡片行为一致。
 
 ### Android（Android 16 / 天玑 9400 / ColorOS 流体云）
 
@@ -189,3 +189,21 @@ app/src/main/java/com/app/m3expressive/
   ScheduleData.kt         内嵌课表（脚本生成）
   LiveUpdates.kt          Android 16 Live Updates / ColorOS 流体云
 ```
+
+---
+
+## 反爬防火墙（Anubis）与持续监控
+
+站点前面可以挂一层 [Anubis](https://github.com/TecharoHQ/anubis)（TecharoHQ）——用工作量证明挡住
+AI 抓取器与脚本爬虫，真人首访只有几百毫秒的静默计算。配置与监控都在仓库里：
+
+* `deploy/anubis/docker-compose.yml` — Anubis + Caddy（TLS/限速），Anubis 固定版本并暴露 `/metrics`
+* `deploy/anubis/botPolicies.yaml` — 放行搜索引擎、拒绝 AI 抓取器与常见脚本 UA、按权重分档挑战
+* `deploy/anubis/Caddyfile` — 域名 TLS、限速、安全响应头，`reverse_proxy` 到 Anubis
+* `deploy/anubis/VERSION` — 锁定的上游版本
+* `.github/workflows/anubis-watch.yml` — **持续监控**：每天比对上游 release（有新版本自动开 issue）、
+  校验策略文件、并在配置了 `ANUBIS_BASE_URL` secret 时探活线上实例
+
+> GitHub Pages 不能直接跑 Anubis（它需要自己的服务器作为反向代理）。做法是：域名解析到 VPS，
+> Caddy 终止 TLS 后交给 Anubis，Anubis 回源到 `https://tequed232.github.io/duofen-kebiao`。
+> 详细的部署步骤、Prometheus 抓取配置与告警建议见 `deploy/anubis/README.md`。

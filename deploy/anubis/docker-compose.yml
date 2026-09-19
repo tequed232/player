@@ -1,0 +1,70 @@
+# 多分课表 · Anubis 反爬防火墙（上游：https://github.com/TecharoHQ/anubis）
+#
+# 结构（与上游推荐一致）：Caddy(443/TLS) → Anubis(8080) → 站点源站
+# 源站这里指向 GitHub Pages 上的多分课表；也可以把 TARGET 换成任意后端。
+#
+# 启动：  docker compose up -d
+# 日志：  docker compose logs -f anubis
+# 指标：  http://127.0.0.1:9090/metrics （Prometheus 格式，供持续监控使用）
+
+services:
+  anubis:
+    # 固定版本，避免 latest 漂移；升级请改 VERSION 文件 + 这里的 tag，并跑 anubis-watch 工作流确认
+    image: ghcr.io/techarohq/anubis:v1.27.0
+    container_name: duofen-anubis
+    restart: unless-stopped
+    environment:
+      BIND: ":8080"
+      # 源站：GitHub Pages 上的多分课表（换成自己的域名也可以）
+      TARGET: "https://tequed232.github.io/duofen-kebiao"
+      # 挑战难度：数值越高越难（对真人几乎无感，对脚本显著变慢）
+      DIFFICULTY: "4"
+      # Prometheus 指标端口，供持续监控抓取
+      METRICS_BIND: ":9090"
+      SERVE_ROBOTS_TXT: "true"
+      # 策略文件（见同目录 botPolicies.yaml）
+      POLICY_FNAME: "/data/cfg/botPolicies.yaml"
+      # 链接预览（Open Graph）透传与缓存
+      OG_PASSTHROUGH: "true"
+      OG_EXPIRY_TIME: "24h"
+      # 站点对外地址，Anubis 用它生成挑战页里的跳转与 OG 链接
+      PUBLIC_URL: "https://kebiao.example.com"
+    volumes:
+      - ./botPolicies.yaml:/data/cfg/botPolicies.yaml:ro
+    ports:
+      # 只监听本机：外部流量一律经过 Caddy，避免绕过 TLS/限速
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "anubis", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: duofen-caddy
+    restart: unless-stopped
+    depends_on:
+      anubis:
+        condition: service_healthy
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # 改成你自己的域名；Caddy 会自动申请并续期证书
+      SITE_ADDRESS: "kebiao.example.com"
+
+volumes:
+  caddy_data:
+  caddy_config:

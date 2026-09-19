@@ -525,3 +525,43 @@ md-primary-tab {
   flex: 1 1 0;
   min-width: 0;
 }
+
+/* ------------------------------------------------------------ textbook ----- */
+
+.textbook-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 20px;
+  background: var(--md-sys-color-surface-container-low);
+}
+
+.textbook-cover {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+.textbook-cover.placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.textbook-select {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  height: 56px;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 1px solid var(--md-sys-color-outline);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-brand);
+  font-size: 16px;
+}

@@ -15,7 +15,9 @@ import { useNav } from '../nav/navigation';
 import { useSpeechRecognition } from '../lib/speech';
 import {
   WEEKDAY_LONG,
+  formatAddress,
   mapProviderById,
+  openMapLink,
   parseISODate,
   searchSchedule,
   targetWeekFor,
@@ -250,8 +252,12 @@ export default function ScheduleFilterScreen() {
           setMapChooser(null);
           const provider = mapProviderById(providerId);
           if (provider && address) {
-            window.open(provider.url(address), '_blank', 'noopener,noreferrer');
-            showSnackbar({ message: `已在${provider.label}中搜索「${address}」`, duration: 4000 });
+            const full = formatAddress(address, settings.schoolName);
+            const mode = openMapLink(provider, full);
+            showSnackbar({
+              message: mode === 'app' ? `正在唤起${provider.label}…` : `已在${provider.label}中搜索「${full}」`,
+              duration: 4000,
+            });
           }
         }}
       />

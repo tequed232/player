@@ -8,13 +8,11 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { AppNavBar, SectionHeader, TopAppBar } from '../components/layout';
-import { MdIcon, MdIconButton, MdSlider, MdSwitch } from '../components/md';
+import { MdDialog, MdIcon, MdIconButton, MdSlider, MdSwitch, MdTextField } from '../components/md';
 import { MapChooserDialog } from '../components/schedule';
 import { useAppState } from '../state/AppState';
 import { useNav } from '../nav/navigation';
 import { mapProviderById } from '../lib/schedule';
-
-const GITHUB_URL = 'https://github.com/tequed232/player';
 
 export default function SettingsScreen() {
   const nav = useNav();
@@ -23,6 +21,10 @@ export default function SettingsScreen() {
   const [speechValue, setSpeechValue] = useState(settings.speechIntensity);
   const [cameraValue, setCameraValue] = useState(settings.cameraSharpness);
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
+  const [schoolDialogOpen, setSchoolDialogOpen] = useState(false);
+  const [schoolDraft, setSchoolDraft] = useState(settings.schoolName);
+  /** 卡扣（每 5%）落位时给数值一个短促的反馈 */
+  const [snapPulse, setSnapPulse] = useState({ speech: false, camera: false });
   const listRef = useRef<HTMLDivElement>(null);
 
   // keep the sliders in sync when settings are changed elsewhere (e.g. 撤销)
@@ -31,6 +33,18 @@ export default function SettingsScreen() {
 
   const apiConfigured = Boolean(settings.sttApiUrl.trim() || settings.visionApiUrl.trim());
   const mapProvider = mapProviderById(settings.mapProvider);
+
+  const pulse = (which: 'speech' | 'camera') => {
+    setSnapPulse((value) => ({ ...value, [which]: true }));
+    window.setTimeout(() => setSnapPulse((value) => ({ ...value, [which]: false })), 220);
+  };
+
+  const toggleLiquidGlass = () => {
+    updateSettings(
+      { liquidGlass: !settings.liquidGlass },
+      { message: settings.liquidGlass ? '已关闭液态玻璃底边栏' : '已开启液态玻璃底边栏' },
+    );
+  };
 
   const toggleDarkMode = () => {
     updateSettings(
@@ -78,7 +92,35 @@ export default function SettingsScreen() {
               <MdIcon slot="end" name="chevron_right" />
             </md-list-item>
 
-            {/* ------------------------------------------------ 3 API编辑 */}
+            {/* -------------------------------------- 3 学校名称（导航用） */}
+            <md-list-item
+              type="button"
+              className="rounded-middle"
+              onClick={() => {
+                setSchoolDraft(settings.schoolName);
+                setSchoolDialogOpen(true);
+              }}
+            >
+              <div slot="start" className="list-icon-badge">
+                <MdIcon name="school" />
+              </div>
+              <div slot="headline">学校名称</div>
+              <div slot="supporting-text">导航时拼在教室前：{settings.schoolName}</div>
+              <MdIcon slot="end" name="chevron_right" />
+            </md-list-item>
+
+            {/* -------------------------------------- 4 液态玻璃底边栏 */}
+            <md-list-item type="button" className="rounded-middle" onClick={() => toggleLiquidGlass()}>
+              <div slot="start" className="list-icon-badge">
+                <MdIcon name="blur_on" />
+              </div>
+              <div slot="headline">液态玻璃底边栏</div>
+              <div slot="supporting-text">
+                {settings.liquidGlass ? '已开启：底边栏使用模糊 + 折射的玻璃效果' : '已关闭：底边栏使用不透明容器色'}
+              </div>
+            </md-list-item>
+
+            {/* ------------------------------------------------ 5 API编辑 */}
             <md-list-item
               type="button"
               className="rounded-middle"
@@ -94,35 +136,35 @@ export default function SettingsScreen() {
               <MdIcon slot="end" name="chevron_right" />
             </md-list-item>
 
-            {/* -------------------------------------- 4 语音输入强度调整 */}
+            {/* -------------------------------------- 6 语音输入强度调整 */}
             <md-list-item type="button" className="rounded-middle">
               <div slot="start" className="list-icon-badge">
                 <MdIcon name="mic" />
               </div>
               <div slot="headline">语音输入强度调整</div>
-              <div slot="supporting-text">识别置信度门限：{Math.round(speechValue)}%</div>
+              <div slot="supporting-text">识别置信度门限：{Math.round(speechValue)}%（每 5% 一档）</div>
             </md-list-item>
 
-            {/* -------------------------------------- 5 相机清晰度调整 */}
+            {/* -------------------------------------- 7 相机清晰度调整 */}
             <md-list-item type="button" className="rounded-middle">
               <div slot="start" className="list-icon-badge">
                 <MdIcon name="camera_video" />
               </div>
               <div slot="headline">相机清晰度调整</div>
-              <div slot="supporting-text">拍摄分辨率与画质：{Math.round(cameraValue)}%</div>
+              <div slot="supporting-text">拍摄分辨率与画质：{Math.round(cameraValue)}%（每 5% 一档）</div>
             </md-list-item>
 
-            {/* ------------------------------------------------ 6 关于本软件 */}
+            {/* ------------------------------------------------ 8 关于本软件 */}
             <md-list-item
               type="button"
               className="rounded-outer-bottom"
-              onClick={() => window.open(GITHUB_URL, '_blank', 'noopener,noreferrer')}
+              onClick={() => nav.push('about', {}, 'slide')}
             >
               <div slot="start" className="list-icon-badge">
                 <MdIcon name="info" />
               </div>
               <div slot="headline">关于本软件</div>
-              <div slot="supporting-text">在 GitHub 上查看项目（{GITHUB_URL}）</div>
+              <div slot="supporting-text">应用信息 · Material 3 设计说明 · 致谢与开源链接</div>
               <MdIcon slot="end" name="chevron_right" />
             </md-list-item>
 
@@ -135,38 +177,55 @@ export default function SettingsScreen() {
               />
             </div>
 
-            <div className="group-overlay" style={{ top: 237, width: 168 }}>
+            {/* 液态玻璃底边栏开关，叠在第 4 行上 */}
+            <div className="group-overlay" style={{ top: 245 }}>
+              <MdSwitch
+                selected={settings.liquidGlass}
+                onSelectedChange={toggleLiquidGlass}
+                ariaLabel="液态玻璃底边栏开关"
+              />
+            </div>
+
+            <div className="group-overlay" style={{ top: 387, width: 182 }}>
               <MdSlider
-                className="expressive-slider flex-1"
+                className="expressive-slider flex-1 detented"
                 value={speechValue}
                 min={0}
                 max={100}
-                step={1}
+                step={5}
+                ticks
                 ariaLabel="语音输入强度"
                 onInput={setSpeechValue}
                 onChange={(value) => {
                   setSpeechValue(value);
+                  pulse('speech');
                   updateSettings({ speechIntensity: value }, { message: '已保存语音输入强度' });
                 }}
               />
-              <span className="overlay-value md-label-medium">{Math.round(speechValue)}%</span>
+              <span className={`overlay-value md-label-medium${snapPulse.speech ? ' detent' : ''}`}>
+                {Math.round(speechValue)}%
+              </span>
             </div>
 
-            <div className="group-overlay" style={{ top: 312, width: 168 }}>
+            <div className="group-overlay" style={{ top: 462, width: 182 }}>
               <MdSlider
-                className="expressive-slider flex-1"
+                className="expressive-slider flex-1 detented"
                 value={cameraValue}
                 min={0}
                 max={100}
-                step={1}
+                step={5}
+                ticks
                 ariaLabel="相机清晰度"
                 onInput={setCameraValue}
                 onChange={(value) => {
                   setCameraValue(value);
+                  pulse('camera');
                   updateSettings({ cameraSharpness: value }, { message: '已保存相机清晰度' });
                 }}
               />
-              <span className="overlay-value md-label-medium">{Math.round(cameraValue)}%</span>
+              <span className={`overlay-value md-label-medium${snapPulse.camera ? ' detent' : ''}`}>
+                {Math.round(cameraValue)}%
+              </span>
             </div>
           </div>
 
@@ -215,6 +274,31 @@ export default function SettingsScreen() {
           updateSettings({ mapProvider: providerId }, { message: '已保存默认地图' });
         }}
       />
+
+      <MdDialog
+        open={schoolDialogOpen}
+        headline="学校名称"
+        onClosed={() => setSchoolDialogOpen(false)}
+        actions={
+          <>
+            <md-text-button onClick={() => setSchoolDialogOpen(false)}>取消</md-text-button>
+            <md-text-button
+              onClick={() => {
+                const name = schoolDraft.trim() || settings.schoolName;
+                setSchoolDialogOpen(false);
+                updateSettings({ schoolName: name }, { message: '已保存学校名称' });
+              }}
+            >
+              保存
+            </md-text-button>
+          </>
+        }
+      >
+        导航时会把学校名拼在教室前面，例如「{schoolDraft || settings.schoolName} 16栋203」。
+        <div className="mt-12">
+          <MdTextField label="学校名称" value={schoolDraft} onValueChange={setSchoolDraft} />
+        </div>
+      </MdDialog>
     </>
   );
 }

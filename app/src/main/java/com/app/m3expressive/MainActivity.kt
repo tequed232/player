@@ -1,4 +1,4 @@
-package com.app.m3expressive
+﻿package com.app.m3expressive
 
 import android.Manifest
 import android.content.Intent
@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.provider.Settings
 import android.speech.RecognizerIntent
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.addCallback
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -43,8 +45,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,18 +62,40 @@ private data class HistoryRecord(val title: String, val detail: String)
 private enum class AppTab { HOME, HISTORY, SCHEDULE, SETTINGS }
 
 class MainActivity : ComponentActivity() {
+
+    /** 当前标签页提升到 Activity 层，便于系统返回手势（可预测式返回）读取 */
+    private val currentTab = mutableStateOf(AppTab.HOME)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Android 16 Live Updates / ColorOS 流体云 渠道
         LiveUpdates.ensureChannel(this)
-        setContent { M3ExpressiveTheme { M3ExpressiveApp() } }
+
+        // 可预测式返回：非首页时先回到首页，首页再按一次才退出应用
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (currentTab.value != AppTab.HOME) {
+                        currentTab.value = AppTab.HOME
+                    } else {
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
+                        isEnabled = true
+                    }
+                }
+            },
+        )
+
+        setContent { M3ExpressiveTheme { M3ExpressiveApp(currentTab) } }
     }
 }
 
 @Composable
-private fun M3ExpressiveApp() {
+private fun M3ExpressiveApp(navTab: MutableState<AppTab>) {
     val context = LocalContext.current
-    var tab by remember { mutableStateOf(AppTab.HOME) }
+    val tab by navTab
+    val setTab: (AppTab) -> Unit = { navTab.value = it }
     var status by remember { mutableStateOf("准备就绪") }
     var sttApi by remember { mutableStateOf("") }
     var i2tApi by remember { mutableStateOf("") }
@@ -85,7 +111,7 @@ private fun M3ExpressiveApp() {
             recordSeconds += 1
             LiveUpdates.update(
                 context,
-                "正在录音 · 四分",
+                "正在录音 · 多分课表",
                 "%02d:%02d · 实时语音转文字进行中".format(recordSeconds / 60, recordSeconds % 60),
             )
         }
@@ -120,7 +146,7 @@ private fun M3ExpressiveApp() {
     ) { granted ->
         if (granted) {
             listening = true
-            LiveUpdates.update(context, "正在录音 · 四分", "00:00 · 实时语音转文字进行中")
+            LiveUpdates.update(context, "正在录音 · 多分课表", "00:00 · 实时语音转文字进行中")
             startSpeechRecognition(context, speechLauncher::launch) {
                 listening = false
                 status = it
@@ -148,15 +174,15 @@ private fun M3ExpressiveApp() {
 
     Scaffold(bottomBar = {
         NavigationBar {
-            NavigationBarItem(tab == AppTab.HOME, { tab = AppTab.HOME }, icon = { Icon(Icons.Outlined.Home, null) }, label = { Text("首页") })
-            NavigationBarItem(tab == AppTab.HISTORY, { tab = AppTab.HISTORY }, icon = { Icon(Icons.Outlined.History, null) }, label = { Text("历史") })
+            NavigationBarItem(tab == AppTab.HOME, { setTab(AppTab.HOME) }, icon = { Icon(Icons.Outlined.Home, null) }, label = { Text("首页") })
+            NavigationBarItem(tab == AppTab.HISTORY, { setTab(AppTab.HISTORY) }, icon = { Icon(Icons.Outlined.History, null) }, label = { Text("历史") })
             NavigationBarItem(
                 tab == AppTab.SCHEDULE,
-                { tab = AppTab.SCHEDULE },
+                { setTab(AppTab.SCHEDULE) },
                 icon = { Icon(Icons.Outlined.CalendarMonth, null) },
                 label = { Text("课表") },
             )
-            NavigationBarItem(tab == AppTab.SETTINGS, { tab = AppTab.SETTINGS }, icon = { Icon(Icons.Outlined.Settings, null) }, label = { Text("设置") })
+            NavigationBarItem(tab == AppTab.SETTINGS, { setTab(AppTab.SETTINGS) }, icon = { Icon(Icons.Outlined.Settings, null) }, label = { Text("设置") })
         }
     }) { padding ->
         Surface(Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
@@ -164,7 +190,7 @@ private fun M3ExpressiveApp() {
                 AppTab.HOME -> HomeScreen(status, listening, recordSeconds, {
                     if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                         listening = true
-                        LiveUpdates.update(context, "正在录音 · 四分", "00:00 · 实时语音转文字进行中")
+                        LiveUpdates.update(context, "正在录音 · 多分课表", "00:00 · 实时语音转文字进行中")
                         startSpeechRecognition(context, speechLauncher::launch) {
                             listening = false
                             status = it
@@ -180,7 +206,7 @@ private fun M3ExpressiveApp() {
                     } else {
                         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     }
-                }) { tab = AppTab.SETTINGS }
+                }) { setTab(AppTab.SETTINGS) }
                 AppTab.HISTORY -> HistoryScreen(history)
                 AppTab.SCHEDULE -> ScheduleScreen()
                 AppTab.SETTINGS -> SettingsScreen(sttApi, i2tApi, { sttApi = it }, { i2tApi = it }, { status = "API 配置已保存" }) {

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Redact a personal name from the published GitHub releases:
  *  - rewrite the release bodies (v1.0.2 / v1.0.3)
  *  - delete the build assets that embed the old name (the v1.0.3 web zip and APK)
@@ -9,7 +9,7 @@
 import { readFile } from 'node:fs/promises';
 
 const API = 'https://api.github.com';
-const repo = 'tequed232/player';
+const repo = 'tequed232/duofen-kebiao';
 const [oldName, replacement] = process.argv.slice(2);
 if (!oldName || !replacement) {
   console.error('usage: node --use-system-ca scripts/redact-release.mjs <oldName> <replacement>');

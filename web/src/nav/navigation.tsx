@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Screen stack navigation with Material 3 Expressive transitions.
  *
  * The stack is mirrored into `history.state` so the browser back gesture / back
@@ -20,7 +20,17 @@ import { MOTION } from '../theme/motion';
 import { uid } from '../lib/utils';
 
 export type TransitionKind = 'slide' | 'fade' | 'zoom';
-export type RouteName = 'home' | 'camera' | 'history' | 'settings' | 'record' | 'apiEdit' | 'blank' | 'schedule' | 'scheduleFilter';
+export type RouteName =
+  | 'home'
+  | 'camera'
+  | 'history'
+  | 'settings'
+  | 'record'
+  | 'apiEdit'
+  | 'blank'
+  | 'schedule'
+  | 'scheduleFilter'
+  | 'about';
 
 export interface RouteEntry {
   key: string;
@@ -77,6 +87,8 @@ export function NavProvider({ initial = 'home', children }: { initial?: RouteNam
   useEffect(() => () => timers.current.forEach((timer) => window.clearTimeout(timer)), []);
 
   useEffect(() => {
+    // 自己管理滚动位置：返回时不要浏览器强行恢复，避免动画中跳位（可预测式返回更顺滑）
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
     // The current entry always describes *this* session's stack: after a reload the
     // state left behind by the previous document must not be trusted, otherwise
     // popTo()/back would restore a stale stack.
