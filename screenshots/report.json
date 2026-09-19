@@ -1,0 +1,284 @@
+{
+  "url": "http://127.0.0.1:4174/",
+  "extra": {
+    "theme": {
+      "theme": "light",
+      "primary": "#00391C",
+      "onPrimary": "#FEFFFE",
+      "primaryContainer": "#12512E",
+      "secondaryContainer": "#3A4B3F",
+      "tertiaryContainer": "#1E4D54",
+      "surface": "#F5FBF6",
+      "surfaceContainerLow": "#EFF5F1",
+      "surfaceContainer": "#EAEFEB",
+      "surfaceContainerHigh": "#E4EAE5",
+      "surfaceContainerHighest": "#DEE4E0",
+      "onSurface": "#000000",
+      "onSurfaceVariant": "#141E17",
+      "outlineVariant": "#28332B",
+      "inverseSurface": "#2D312E",
+      "inversePrimary": "#96D5A9",
+      "error": "#B3261E",
+      "springDuration": "283ms"
+    },
+    "layout": {
+      "phone": {
+        "w": 412,
+        "h": 892,
+        "x": 0,
+        "y": 0,
+        "bg": "rgb(245, 251, 246)",
+        "radius": "0px"
+      },
+      "topBox": {
+        "w": 380,
+        "h": 216,
+        "x": 16,
+        "y": 8,
+        "bg": "rgb(228, 234, 229)",
+        "radius": "28px"
+      },
+      "middleBox": {
+        "w": 380,
+        "h": 424,
+        "x": 16,
+        "y": 249,
+        "bg": "rgb(30, 77, 84)",
+        "radius": "28px"
+      },
+      "navBar": {
+        "w": 412,
+        "h": 80,
+        "x": 0,
+        "y": 812,
+        "bg": "rgba(0, 0, 0, 0)",
+        "radius": "0px"
+      },
+      "buttonGroup": {
+        "w": 380,
+        "h": 56,
+        "x": 16,
+        "y": 744,
+        "bg": "rgba(0, 0, 0, 0)",
+        "radius": "0px"
+      },
+      "textField": {
+        "w": 380,
+        "h": 56,
+        "x": 16,
+        "y": 704,
+        "bg": "rgba(0, 0, 0, 0)",
+        "radius": "0px"
+      },
+      "buttons": [
+        {
+          "w": 96,
+          "h": 56,
+          "y": 744
+        },
+        {
+          "w": 124,
+          "h": 56,
+          "y": 744
+        }
+      ],
+      "tokens": {
+        "buttonShapeStart": "28px",
+        "buttonShapeInnerEnd": "8px",
+        "fieldShape": "16px",
+        "fieldOutline": "#28332B",
+        "navContainerHeight": "80px",
+        "navContainerColor": "#EAEFEB",
+        "navIndicatorWidth": "64px",
+        "navIndicatorHeight": "32px",
+        "navIndicatorColor": "#3A4B3F"
+      },
+      "icon": {
+        "codepoint": "e88a",
+        "w": 0,
+        "h": 0,
+        "font": "\"Material Symbols Rounded\", \"Material Icons\""
+      }
+    },
+    "settings": {
+      "list": {
+        "w": 380,
+        "h": 388,
+        "x": 16,
+        "y": 72
+      },
+      "items": [
+        {
+          "h": 72,
+          "y": 72,
+          "radius": "28px 28px 8px 8px"
+        },
+        {
+          "h": 72,
+          "y": 147,
+          "radius": "8px"
+        },
+        {
+          "h": 72,
+          "y": 222,
+          "radius": "8px"
+        },
+        {
+          "h": 72,
+          "y": 297,
+          "radius": "8px"
+        },
+        {
+          "h": 88,
+          "y": 372,
+          "radius": "8px 8px 28px 28px"
+        }
+      ],
+      "overlays": [
+        {
+          "w": 52,
+          "y": 92
+        },
+        {
+          "w": 168,
+          "y": 234
+        },
+        {
+          "w": 168,
+          "y": 309
+        }
+      ],
+      "switchTrack": [
+        "52px",
+        "32px"
+      ],
+      "sliderTokens": [
+        "16px",
+        "4px",
+        "44px",
+        "#3A4B3F"
+      ]
+    },
+    "camera": {
+      "w": 1440,
+      "h": 1080,
+      "paused": false
+    },
+    "persisted": [
+      {
+        "title": "照片记录 · 2026/09/19 14:56",
+        "images": 1
+      }
+    ],
+    "darkTheme": {
+      "theme": "dark",
+      "primary": "#ffece7",
+      "onPrimary": "#000000",
+      "primaryContainer": "#ffaf96",
+      "secondaryContainer": "#9ccbcd",
+      "tertiaryContainer": "#8dd0bb",
+      "surface": "#0d1512",
+      "surfaceContainerLow": "#19211e",
+      "surfaceContainer": "#29322e",
+      "surfaceContainerHigh": "#343d39",
+      "surfaceContainerHighest": "#404944",
+      "onSurface": "#ffffff",
+      "onSurfaceVariant": "#ffffff",
+      "outlineVariant": "#b5c7bd",
+      "inverseSurface": "#dbe5de",
+      "inversePrimary": "#77341d",
+      "error": "#ffece9",
+      "springDuration": "283ms"
+    },
+    "afterUndoTheme": {
+      "theme": "light",
+      "primary": "#00391C",
+      "onPrimary": "#FEFFFE",
+      "primaryContainer": "#12512E",
+      "secondaryContainer": "#3A4B3F",
+      "tertiaryContainer": "#1E4D54",
+      "surface": "#F5FBF6",
+      "surfaceContainerLow": "#EFF5F1",
+      "surfaceContainer": "#EAEFEB",
+      "surfaceContainerHigh": "#E4EAE5",
+      "surfaceContainerHighest": "#DEE4E0",
+      "onSurface": "#000000",
+      "onSurfaceVariant": "#141E17",
+      "outlineVariant": "#28332B",
+      "inverseSurface": "#2D312E",
+      "inversePrimary": "#96D5A9",
+      "error": "#B3261E",
+      "springDuration": "283ms"
+    },
+    "questionModeLabel": "提问模式 · 回车发送",
+    "branchCount": 1,
+    "branchText": "\n这段\n问：这段记录讲了什么？\n当前记录里没有找到与该问题相关的内容。可以先在主页录制语音或导入图片，再针对内容提问。",
+    "sliderSupporting": "\n语音输入强度调整\n识别置信度门限：81%",
+    "sliderSupportingAfterReload": "\n语音输入强度调整\n识别置信度门限：81%",
+    "storedSettings": {
+      "darkMode": false,
+      "speechIntensity": 81,
+      "cameraSharpness": 1,
+      "sttApiUrl": "",
+      "sttApiKey": "",
+      "visionApiUrl": "",
+      "visionApiKey": "",
+      "qaApiUrl": "",
+      "qaApiKey": ""
+    },
+    "menuItems": "\n显示全部记录"
+  },
+  "consoleErrors": [],
+  "pageErrors": [],
+  "steps": [
+    "ok:home renders",
+    "shot:01-home",
+    "ok:transcript panel expands",
+    "shot:02-home-panel",
+    "ok:panel closes",
+    "ok:history tab",
+    "shot:03-history-empty",
+    "ok:settings tab",
+    "shot:04-settings",
+    "ok:api edit screen",
+    "shot:05-api-edit",
+    "ok:api back",
+    "ok:home tab",
+    "ok:open camera",
+    "shot:06-camera",
+    "ok:shutter creates a record",
+    "shot:07-camera-after-shot",
+    "ok:camera back to home",
+    "shot:08-home-after-capture",
+    "ok:history with record",
+    "shot:09-history",
+    "ok:open record detail",
+    "shot:10-record-detail",
+    "ok:image viewer",
+    "shot:11-image-viewer",
+    "ok:close viewer",
+    "ok:detail text panel",
+    "shot:12-detail-panel",
+    "ok:close detail panel",
+    "ok:back to history",
+    "ok:reload keeps the record",
+    "shot:13-history-after-reload",
+    "ok:dark mode toggle",
+    "shot:14-settings-dark",
+    "ok:undo dark mode",
+    "shot:15-settings-light-again",
+    "ok:record detail still opens from history",
+    "shot:16-delete-dialog",
+    "ok:cancel delete dialog",
+    "ok:back to history from detail",
+    "ok:long press enters question mode",
+    "shot:17-question-mode",
+    "ok:question creates a mind-map branch",
+    "shot:18-question-answer",
+    "ok:slider drag saves and persists",
+    "shot:19-slider-drag",
+    "ok:slider value survives reload",
+    "ok:history overflow menu opens",
+    "shot:20-history-menu"
+  ]
+}

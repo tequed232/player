@@ -1,0 +1,289 @@
+/* ============================================================================
+   Base layout: browser stage, 412x892dp portrait phone frame, screen stack and
+   Material 3 Expressive screen transitions.
+   ========================================================================= */
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--md-ref-typeface-brand);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Desktop: a centered phone frame on a neutral backdrop derived from the scheme. */
+.stage {
+  height: 100dvh;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--md-sys-color-scrim, #000) 42%, var(--md-sys-color-surface));
+}
+
+.phone {
+  position: relative;
+  width: min(412px, 100vw);
+  height: min(892px, 100dvh);
+  overflow: hidden;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  isolation: isolate;
+}
+
+@media (min-width: 460px) and (min-height: 940px) {
+  .phone {
+    border-radius: 32px;
+    box-shadow: var(--md-sys-elevation-3);
+  }
+}
+
+/* ---------------------------------------------------------------- screens */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+
+.screen-content {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 16px 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  transition:
+    transform var(--md-sys-motion-spring-spatial-default-duration, 500ms)
+      var(--md-sys-motion-spring-spatial-default, cubic-bezier(0.2, 0, 0, 1)),
+    opacity var(--md-sys-motion-spring-effects-default-duration, 200ms) linear,
+    filter var(--md-sys-motion-spring-effects-default-duration, 200ms) linear;
+  transform-origin: top center;
+}
+
+.screen-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* wrapper so an expanding panel can sink the whole screen content under it */
+.screen-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  transition:
+    transform var(--md-sys-motion-spring-spatial-default-duration, 500ms)
+      var(--md-sys-motion-spring-spatial-default, cubic-bezier(0.2, 0, 0, 1)),
+    opacity var(--md-sys-motion-spring-effects-default-duration, 200ms) linear,
+    filter var(--md-sys-motion-spring-effects-default-duration, 200ms) linear;
+  transform-origin: top center;
+}
+
+/* "the other components sink below the panel and stack at the bottom" */
+.screen-inner.stacked {
+  transform: translate3d(0, 9%, 0) scale(0.9);
+  filter: brightness(0.94);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.app-bar,
+.nav-bar {
+  transition:
+    transform var(--md-sys-motion-spring-spatial-default-duration, 500ms)
+      var(--md-sys-motion-spring-spatial-default, cubic-bezier(0.2, 0, 0, 1)),
+    opacity var(--md-sys-motion-spring-effects-default-duration, 200ms) linear;
+}
+
+/* ------------------------------------------------------- screen transitions */
+/* push: incoming slides in from the right */
+@keyframes screen-slide-in {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes screen-slide-out {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+@keyframes screen-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes screen-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes screen-zoom-in {
+  from {
+    transform: scale(0.42);
+    opacity: 0;
+    border-radius: 48px;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+    border-radius: 0;
+  }
+}
+
+@keyframes screen-zoom-out {
+  from {
+    transform: scale(1);
+    opacity: 1;
+    border-radius: 0;
+  }
+  to {
+    transform: scale(0.42);
+    opacity: 0;
+    border-radius: 48px;
+  }
+}
+
+.screen.enter-slide {
+  animation: screen-slide-in var(--md-sys-motion-spring-spatial-default-duration, 500ms)
+    var(--md-sys-motion-spring-spatial-default, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+.screen.exit-slide {
+  animation: screen-slide-out var(--md-sys-motion-spring-spatial-fast-duration, 350ms)
+    var(--md-sys-motion-spring-spatial-fast, cubic-bezier(0.4, 0, 0.6, 1)) both;
+  pointer-events: none;
+}
+.screen.enter-fade {
+  animation: screen-fade-in var(--md-sys-motion-spring-effects-default-duration, 200ms)
+    var(--md-sys-motion-spring-effects-default, ease-out) both;
+}
+.screen.exit-fade {
+  animation: screen-fade-out var(--md-sys-motion-spring-effects-slow-duration, 300ms)
+    var(--md-sys-motion-spring-effects-slow, ease-in) both;
+  pointer-events: none;
+}
+.screen.enter-zoom {
+  animation: screen-zoom-in var(--md-sys-motion-spring-zoom-duration, 600ms)
+    var(--md-sys-motion-spring-zoom, cubic-bezier(0.2, 0, 0, 1)) both;
+}
+.screen.exit-zoom {
+  animation: screen-zoom-out var(--md-sys-motion-spring-zoom-duration, 600ms)
+    var(--md-sys-motion-spring-zoom, cubic-bezier(0.2, 0, 0, 1)) both;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ utils */
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.scroll-y {
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.scroll-y::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* ripple + slight scale feedback for anything clickable that is not a
+   Material Web component (those ship md-ripple themselves). */
+.tap {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--md-sys-motion-spring-effects-fast-duration, 150ms)
+    var(--md-sys-motion-spring-effects-fast, ease-out);
+}
+
+.tap:active {
+  transform: scale(0.97);
+}
+
+.tap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--md-sys-motion-spring-effects-default-duration, 200ms) linear;
+}
+
+.tap:active::after {
+  opacity: 0.08;
+}
+
+/* focus ring for keyboard users */
+:focus-visible {
+  outline: 3px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+/* Motion accessibility: honour the OS setting. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

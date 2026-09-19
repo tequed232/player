@@ -11,3 +11,11 @@ local.properties
 # OS
 .DS_Store
 Thumbs.db
+
+# Web app (Vite) dependencies and logs
+node_modules/
+*.log
+
+# Build output of the web app: keep dist/ (it is the deliverable), ignore caches
+web/node_modules/
+.vite/

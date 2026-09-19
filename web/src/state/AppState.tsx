@@ -1,0 +1,316 @@
+/** Global application state: settings, records, live draft, snackbar and theme. */
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import * as db from '../lib/db';
+import { deriveKeyPoints } from '../lib/api';
+import { DEFAULT_SETTINGS, EMPTY_DRAFT, type AppSettings, type Draft, type NoteRecord, type QaBranch } from '../lib/types';
+import { applyRoles, buildThemes, detectSeed, type SeedSource } from '../theme/palette';
+import { formatDateTime, uid } from '../lib/utils';
+
+export interface SnackbarMessage {
+  id: number;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  duration: number;
+}
+
+export interface UpdateOptions {
+  message?: string;
+  undoLabel?: string;
+  undoable?: boolean;
+}
+
+export interface RecordInput {
+  title?: string;
+  note?: string;
+  images?: string[];
+  transcript?: string;
+  imageSummary?: string;
+  keyPoints?: string[];
+  branches?: QaBranch[];
+  tags?: string[];
+}
+
+interface AppStateValue {
+  ready: boolean;
+  settings: AppSettings;
+  records: NoteRecord[];
+  draft: Draft;
+  /** key points currently displayed (API provided, or derived from the captured text) */
+  effectiveKeyPoints: string[];
+  seed: SeedSource;
+  dynamicColor: boolean;
+  updateSettings: (patch: Partial<AppSettings>, options?: UpdateOptions) => void;
+  createRecord: (input: RecordInput) => Promise<NoteRecord>;
+  updateRecord: (id: string, patch: Partial<NoteRecord>) => Promise<void>;
+  removeRecord: (id: string) => Promise<void>;
+  clearAllRecords: () => Promise<void>;
+  restoreRecords: (list: NoteRecord[]) => Promise<void>;
+  setDraft: (patch: Partial<Draft>) => void;
+  appendTranscript: (text: string) => void;
+  addBranchAnswer: (question: string, answer: string, topic: string, source: 'api' | 'local' | 'none') => void;
+  resetDraft: () => void;
+  markDraftSaved: () => void;
+  showSnackbar: (options: Omit<SnackbarMessage, 'id' | 'duration'> & { duration?: number }) => void;
+  hideSnackbar: () => void;
+  snackbar: SnackbarMessage | null;
+}
+
+const AppStateContext = createContext<AppStateValue | null>(null);
+
+export function useAppState(): AppStateValue {
+  const value = useContext(AppStateContext);
+  if (!value) throw new Error('useAppState must be used inside <AppStateProvider>');
+  return value;
+}
+
+export function AppStateProvider({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [records, setRecords] = useState<NoteRecord[]>([]);
+  const [draft, setDraftState] = useState<Draft>(EMPTY_DRAFT);
+  const [snackbar, setSnackbar] = useState<SnackbarMessage | null>(null);
+  const [seed] = useState<SeedSource>(() => detectSeed());
+  const theme = useMemo(() => buildThemes(seed), [seed]);
+
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const snackbarTimer = useRef<number | undefined>(undefined);
+  const draftTimer = useRef<number | undefined>(undefined);
+
+  /* ------------------------------------------------------------- loading */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [storedSettings, storedRecords, storedDraft] = await Promise.all([
+        db.readSettings(),
+        db.getAllRecords(),
+        db.readKv<Draft>(db.DRAFT_KEY),
+      ]);
+      if (cancelled) return;
+      setSettings({ ...DEFAULT_SETTINGS, ...storedSettings });
+      setRecords(storedRecords);
+      if (storedDraft) setDraftState({ ...EMPTY_DRAFT, ...storedDraft, interim: '' });
+      setReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* --------------------------------------------------------- persistence */
+  useEffect(() => {
+    if (!ready) return;
+    void db.writeSettings(settings);
+  }, [settings, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      void db.writeKv(db.DRAFT_KEY, { ...draft, interim: '' });
+    }, 400);
+    return () => window.clearTimeout(draftTimer.current);
+  }, [draft, ready]);
+
+  /* --------------------------------------------------------------- theme */
+  useEffect(() => {
+    applyRoles(settings.darkMode ? theme.dark : theme.light, settings.darkMode);
+  }, [settings.darkMode, theme]);
+
+  /* ------------------------------------------------------------ snackbar */
+  const hideSnackbar = useCallback(() => setSnackbar(null), []);
+
+  const showSnackbar = useCallback<AppStateValue['showSnackbar']>((options) => {
+    window.clearTimeout(snackbarTimer.current);
+    const message: SnackbarMessage = {
+      id: Date.now(),
+      duration: options.duration ?? 5000,
+      message: options.message,
+      actionLabel: options.actionLabel,
+      onAction: options.onAction,
+    };
+    setSnackbar(message);
+    snackbarTimer.current = window.setTimeout(() => setSnackbar(null), message.duration);
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(snackbarTimer.current), []);
+
+  /* ------------------------------------------------------------ settings */
+  const updateSettings = useCallback<AppStateValue['updateSettings']>(
+    (patch, options) => {
+      const previous: Partial<AppSettings> = {};
+      const current = settingsRef.current;
+      (Object.keys(patch) as (keyof AppSettings)[]).forEach((key) => {
+        (previous as Record<string, unknown>)[key] = current[key];
+      });
+      setSettings((value) => ({ ...value, ...patch }));
+      if (options?.undoable === false) return;
+      showSnackbar({
+        message: options?.message ?? '已保存',
+        actionLabel: options?.undoLabel ?? '撤销',
+        onAction: () => {
+          setSettings((value) => ({ ...value, ...previous }));
+          showSnackbar({ message: '已撤销修改', duration: 2500 });
+        },
+      });
+    },
+    [showSnackbar],
+  );
+
+  /* ------------------------------------------------------------- records */
+  const createRecord = useCallback<AppStateValue['createRecord']>(
+    async (input) => {
+      const now = Date.now();
+      const record: NoteRecord = {
+        id: uid('rec'),
+        title: input.title?.trim() || `记录 · ${formatDateTime(now)}`,
+        note: input.note ?? '',
+        images: input.images ?? [],
+        transcript: input.transcript ?? '',
+        imageSummary: input.imageSummary ?? '',
+        keyPoints: input.keyPoints ?? [],
+        branches: input.branches ?? [],
+        tags: input.tags ?? [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      setRecords((value) => [record, ...value]);
+      await db.putRecord(record);
+      return record;
+    },
+    [],
+  );
+
+  const updateRecord = useCallback<AppStateValue['updateRecord']>(async (id, patch) => {
+    let updated: NoteRecord | undefined;
+    setRecords((value) =>
+      value.map((record) => {
+        if (record.id !== id) return record;
+        updated = { ...record, ...patch, updatedAt: Date.now() };
+        return updated;
+      }),
+    );
+    if (updated) await db.putRecord(updated);
+  }, []);
+
+  const removeRecord = useCallback<AppStateValue['removeRecord']>(async (id) => {
+    setRecords((value) => value.filter((record) => record.id !== id));
+    await db.deleteRecord(id);
+  }, []);
+
+  const clearAllRecords = useCallback<AppStateValue['clearAllRecords']>(async () => {
+    setRecords([]);
+    await db.clearRecords();
+  }, []);
+
+  const restoreRecords = useCallback(async (list: NoteRecord[]) => {
+    setRecords([...list].sort((a, b) => b.createdAt - a.createdAt));
+    await Promise.all(list.map((record) => db.putRecord(record)));
+  }, []);
+
+  /* --------------------------------------------------------------- draft */
+  const setDraft = useCallback<AppStateValue['setDraft']>((patch) => {
+    setDraftState((value) => ({ ...value, ...patch, updatedAt: Date.now() }));
+  }, []);
+
+  const appendTranscript = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setDraftState((value) => {
+      const needsSpace = value.transcript && !/[\s\n]$/.test(value.transcript);
+      return {
+        ...value,
+        transcript: `${value.transcript}${needsSpace ? ' ' : ''}${trimmed}`,
+        updatedAt: Date.now(),
+      };
+    });
+  }, []);
+
+  const addBranchAnswer = useCallback<AppStateValue['addBranchAnswer']>((question, answer, topic, source) => {
+    setDraftState((value) => {
+      const branches = value.branches.map((branch) => ({ ...branch, entries: [...branch.entries] }));
+      const entry = { id: uid('qa'), question, answer, source, createdAt: Date.now() };
+      const index = branches.findIndex((branch) => branch.topic === topic);
+      if (index >= 0) {
+        branches[index].entries.push(entry);
+      } else {
+        branches.push({ id: uid('br'), topic, entries: [entry] });
+      }
+      return { ...value, branches, updatedAt: Date.now() };
+    });
+  }, []);
+
+  const resetDraft = useCallback(() => setDraftState({ ...EMPTY_DRAFT }), []);
+
+  const markDraftSaved = useCallback(() => {
+    window.clearTimeout(draftTimer.current);
+    void db.writeKv(db.DRAFT_KEY, EMPTY_DRAFT);
+  }, []);
+
+  const effectiveKeyPoints = useMemo(() => {
+    if (draft.keyPoints.length) return draft.keyPoints;
+    const text = `${draft.transcript}\n${draft.imageSummary}`.trim();
+    return text ? deriveKeyPoints(text) : [];
+  }, [draft.keyPoints, draft.transcript, draft.imageSummary]);
+
+  const value = useMemo<AppStateValue>(
+    () => ({
+      ready,
+      settings,
+      records,
+      draft,
+      effectiveKeyPoints,
+      seed,
+      dynamicColor: theme.dynamic,
+      updateSettings,
+      createRecord,
+      updateRecord,
+      removeRecord,
+      clearAllRecords,
+      restoreRecords,
+      setDraft,
+      appendTranscript,
+      addBranchAnswer,
+      resetDraft,
+      markDraftSaved,
+      showSnackbar,
+      hideSnackbar,
+      snackbar,
+    }),
+    [
+      ready,
+      settings,
+      records,
+      draft,
+      effectiveKeyPoints,
+      seed,
+      theme.dynamic,
+      updateSettings,
+      createRecord,
+      updateRecord,
+      removeRecord,
+      clearAllRecords,
+      restoreRecords,
+      setDraft,
+      appendTranscript,
+      addBranchAnswer,
+      resetDraft,
+      markDraftSaved,
+      showSnackbar,
+      hideSnackbar,
+      snackbar,
+    ],
+  );
+
+  return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
+}
