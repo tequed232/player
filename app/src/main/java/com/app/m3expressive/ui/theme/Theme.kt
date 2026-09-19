@@ -2,13 +2,18 @@ package com.app.m3expressive.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-// 严格使用声明的 Green 系 High Contrast 角色
-val LightGreenColorScheme = lightColorScheme(
+private val LightGreenColorScheme = lightColorScheme(
     primary = Color(0xFF00391C),
     onPrimary = Color(0xFFFEFFFE),
     primaryContainer = Color(0xFF12512E),
@@ -47,13 +52,14 @@ fun M3ExpressiveTheme(
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
+        darkTheme -> darkColorScheme()
         else -> LightGreenColorScheme
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography, // 遵循 Roboto 并对 Title/Button 采用 Emphasized 字重
-        shapes = Shapes,
+        typography = Typography(),
+        shapes = Shapes(),
         content = content
     )
 }
