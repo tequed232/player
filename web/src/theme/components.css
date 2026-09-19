@@ -1015,3 +1015,63 @@ md-circular-progress {
 .home-actions > md-filled-button:last-child {
   --md-filled-button-container-shape: var(--md-sys-shape-corner-full);
 }
+
+/* 输入行：左侧圆圈（长/临时录制）+ 右侧输入框，互不干扰 */
+.home-input-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  touch-action: manipulation;
+}
+
+.mic-circle {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 150ms var(--md-sys-motion-spring-effects-fast, ease-out),
+    background 200ms linear,
+    color 200ms linear;
+}
+
+.mic-circle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 200ms linear;
+}
+
+.mic-circle:active {
+  transform: scale(0.94);
+}
+
+.mic-circle:active::after {
+  opacity: 0.12;
+}
+
+.mic-circle.recording {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+}
+
+.mic-circle.temporary {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}

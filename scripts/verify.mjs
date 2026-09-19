@@ -320,6 +320,75 @@ try {
     }
   });
 
+  await step('mic circle: tap starts the long recording', async () => {
+    await top().locator('.mic-circle').click({ force: true, timeout: 7000 });
+    await page.waitForTimeout(1400);
+    extra.micTapSnackbar = (await page.locator('.snackbar').first().innerText()).replace(/\s+/g, ' ');
+    extra.micProgress = await top().locator('.recording-progress').count();
+    extra.micCircleClass = await top().locator('.mic-circle').getAttribute('class');
+    if (!extra.micTapSnackbar.includes('长时间录制')) throw new Error(`unexpected hint: ${extra.micTapSnackbar}`);
+    if (!extra.micProgress || !extra.micCircleClass.includes('recording')) throw new Error('recording state not applied');
+  });
+  await shot('33-mic-long-recording');
+
+  await step('mic circle: second tap stops recording', async () => {
+    await top().locator('.mic-circle').click({ force: true, timeout: 7000 });
+    await page.waitForTimeout(1000);
+    extra.micProgressAfterStop = await top().locator('.recording-progress').count();
+    if (extra.micProgressAfterStop !== 0) throw new Error('recording did not stop');
+  });
+
+  await step('mic circle: long press starts the temporary recording', async () => {
+    const box = await top().locator('.mic-circle').boundingBox();
+    if (!box) throw new Error('mic circle not found');
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(800);
+    await page.mouse.up();
+    await page.waitForTimeout(1200);
+    extra.micLongSnackbar = (await page.locator('.snackbar').first().innerText()).replace(/\s+/g, ' ');
+    extra.micCircleTemporary = await top().locator('.mic-circle.temporary').count();
+    if (!extra.micLongSnackbar.includes('临时录制')) throw new Error(`unexpected hint: ${extra.micLongSnackbar}`);
+    if (!extra.micCircleTemporary) throw new Error('temporary recording state not applied');
+  });
+  await shot('34-mic-temporary-recording');
+
+  await step('input field: long press selects text, not question mode', async () => {
+    // 先结束临时录制
+    await top().locator('.mic-circle').click({ force: true, timeout: 7000 }).catch(() => undefined);
+    await page.waitForTimeout(800);
+    const holder = top().locator('.home-input');
+    const box = await holder.boundingBox();
+    if (!box) throw new Error('input not found');
+    await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(800);
+    await page.mouse.up();
+    await page.waitForTimeout(900);
+    extra.fieldLabel = await top()
+      .locator('md-outlined-text-field')
+      .first()
+      .evaluate((element) => element.label ?? element.getAttribute('label'));
+    if (String(extra.fieldLabel).includes('提问')) throw new Error('the field long press must not switch to question mode');
+    // 提问模式改由输入框右侧的图标按钮进入，确认仍可用
+    await top()
+      .locator('.home-input md-icon-button')
+      .first()
+      .click({ force: true, timeout: 7000 });
+    await page.waitForTimeout(900);
+    extra.questionModeLabel = await top()
+      .locator('md-outlined-text-field')
+      .first()
+      .evaluate((element) => element.label ?? element.getAttribute('label'));
+    if (!String(extra.questionModeLabel).includes('提问')) throw new Error('question mode button did not work');
+    await top()
+      .locator('.home-input md-icon-button')
+      .last()
+      .click({ force: true, timeout: 7000 });
+    await page.waitForTimeout(600);
+  });
+  await shot('35-input-question-toggle');
+
   await step('open camera', async () => {
     await clickTop('md-filled-button', 0);
     await waitTop('.camera-frame video');
@@ -448,17 +517,15 @@ try {
     await page.waitForTimeout(1200);
   });
 
-  await step('long press enters question mode', async () => {
+  await step('question mode is entered from the field icon', async () => {
     await clickTop('md-navigation-tab', 0);
     await page.waitForTimeout(1000);
-    const holder = top().locator('.home-input');
-    const box = await holder.boundingBox();
-    if (!box) throw new Error('home input not found');
-    await page.mouse.move(box.x + box.width / 2, box.y + 14);
-    await page.mouse.down();
+    // 长按输入框现在是原生选中文本，提问模式改由右侧图标按钮进入
+    await top()
+      .locator('.home-input md-icon-button')
+      .first()
+      .click({ force: true, timeout: 7000 });
     await page.waitForTimeout(800);
-    await page.mouse.up();
-    await page.waitForTimeout(600);
     extra.questionModeLabel = await top()
       .locator('md-outlined-text-field')
       .first()

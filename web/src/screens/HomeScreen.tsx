@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 主页 (Home)
  *
  * Top container  : live speech-to-text raw transcript   -> tap = fullscreen panel
@@ -44,25 +44,48 @@ export default function HomeScreen() {
   const [question, setQuestion] = useState('');
   const [manualText, setManualText] = useState('');
   const [busy, setBusy] = useState(false);
+  /** 圆圈按钮的两种录制模式：长时间录制 / 临时录制 */
+  const [recording, setRecording] = useState<'idle' | 'continuous' | 'temporary'>('idle');
+  const recordingRef = useRef(recording);
+  recordingRef.current = recording;
+  const tempTimer = useRef<number | undefined>(undefined);
 
   const topRef = useRef<HTMLDivElement>(null);
   const middleRef = useRef<HTMLDivElement>(null);
 
   const speech = useSpeechRecognition({
     intensity: settings.speechIntensity,
-    onFinal: appendTranscript,
-    onError: (message) => showSnackbar({ message, duration: 6000 }),
+    onFinal: (text) => {
+      appendTranscript(text);
+      if (recordingRef.current === 'temporary') {
+        // 临时录制：识别到一句就结束，结果直接提示出来
+        window.clearTimeout(tempTimer.current);
+        speechRef.current?.stop();
+        setRecording('idle');
+        showSnackbar({ message: `临时录制：${text}`, duration: 5000 });
+      }
+    },
+    onError: (message) => {
+      setRecording('idle');
+      showSnackbar({ message, duration: 6000 });
+    },
   });
+  const speechRef = useRef(speech);
+  speechRef.current = speech;
 
   /* 录音进度条 + 系统通知（对应 Android 端流体云卡片） */
   const notice = useSystemNotice();
+  /** 界面统一以 recording 为准，避免语音引擎提前结束造成状态不一致 */
+  const isRecording = recording !== 'idle';
   // 通知每 5 秒刷新一次；进度条自己带 1 秒计时，避免整屏每秒重渲染
-  const noticeSeconds = useElapsedSeconds(speech.listening, 5000);
-  const wasListening = useRef(false);
+  const noticeSeconds = useElapsedSeconds(isRecording, 5000);
 
-  const toggleMic = useCallback(async () => {
-    if (speech.listening) {
+  /** 单点圆圈：进入长时间录制（持续实时转写，再点一次结束） */
+  const startContinuousRecording = useCallback(async () => {
+    if (recordingRef.current !== 'idle' || speech.listening) {
+      window.clearTimeout(tempTimer.current);
       speech.stop();
+      setRecording('idle');
       notice.close();
       const text = draft.transcript.trim();
       if (text) {
@@ -72,29 +95,60 @@ export default function HomeScreen() {
       return;
     }
     const granted = await notice.request();
+    setRecording('continuous');
     speech.start();
+    showSnackbar({ message: '进入长时间录制', duration: 3000 });
     notice.show(
       '正在录音 · 四分',
-      granted ? '实时语音转文字进行中，点按应用内麦克风停止' : '实时语音转文字进行中（未授予通知权限）',
+      granted ? '长时间录制进行中，再次点按圆圈结束' : '长时间录制进行中（未授予通知权限）',
     );
-  }, [draft.transcript, notice, speech]);
+  }, [draft.transcript, notice, showSnackbar, speech]);
+
+  /** 长按圆圈：临时录制（最多 10 秒，识别到一句即结束） */
+  const startTemporaryRecording = useCallback(async () => {
+    if (speech.listening) speech.stop();
+    window.clearTimeout(tempTimer.current);
+    if (!speech.supported) {
+      showSnackbar({ message: '当前浏览器不支持实时语音识别，可在右侧输入框手动输入', duration: 5000 });
+      return;
+    }
+    const granted = await notice.request();
+    setRecording('temporary');
+    speech.start();
+    showSnackbar({ message: '临时录制（松开后最多录制 10 秒）', duration: 3000 });
+    notice.show('临时录制 · 四分', granted ? '识别到一句话后自动结束' : '临时录制进行中');
+    tempTimer.current = window.setTimeout(() => {
+      speechRef.current?.stop();
+      setRecording('idle');
+      notice.close();
+      showSnackbar({ message: '临时录制结束，没有识别到内容', duration: 4000 });
+    }, 10000);
+  }, [notice, showSnackbar, speech]);
+
+  const micLongPress = useLongPress(
+    () => void startTemporaryRecording(),
+    () => void startContinuousRecording(),
+    500,
+  );
 
   // 定时刷新通知里的计时，让状态卡片保持“活着”
   useEffect(() => {
-    if (!speech.listening) {
-      wasListening.current = false;
-      return;
-    }
-    wasListening.current = true;
+    if (!isRecording) return;
     const mm = Math.floor(noticeSeconds / 60)
       .toString()
       .padStart(2, '0');
     const ss = (noticeSeconds % 60).toString().padStart(2, '0');
-    notice.show('正在录音 · 四分', `${mm}:${ss} · 实时语音转文字进行中`);
+    notice.show(recordingRef.current === 'temporary' ? '临时录制 · 四分' : '正在录音 · 四分', `${mm}:${ss} · 实时语音转文字进行中`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noticeSeconds, speech.listening]);
+  }, [noticeSeconds, isRecording]);
 
-  useEffect(() => () => notice.close(), [notice]);
+  useEffect(
+    () => () => {
+      window.clearTimeout(tempTimer.current);
+      notice.close();
+    },
+    [notice],
+  );
 
   const sheetOpen = topOpen || middleOpen;
 
@@ -200,16 +254,6 @@ export default function HomeScreen() {
     showSnackbar({ message: '已追加到语音转文字内容' });
   }, [appendTranscript, manualText, showSnackbar]);
 
-  const longPressField = useLongPress(
-    () => {
-      setQuestionMode(true);
-      showSnackbar({ message: '已进入提问模式：输入问题后按回车发送', duration: 4000 });
-    },
-    () => {
-      /* a short tap keeps the normal text input behaviour */
-    },
-  );
-
   const selectTab = (tab: 'home' | 'history' | 'schedule' | 'settings') => {
     if (tab === 'home') {
       nav.popTo('home');
@@ -233,17 +277,21 @@ export default function HomeScreen() {
           aria-label="实时语音转文字，点击放大"
         >
           <div className="row gap-8">
-            {speech.listening ? <span className="live-dot" /> : <MdIcon name="graphic_eq" size={20} />}
+            {isRecording ? <span className="live-dot" /> : <MdIcon name="graphic_eq" size={20} />}
             <span className="md-title-small-emphasized flex-1">
-              {speech.listening ? '正在聆听…' : '实时语音转文字'}
+              {recording === 'temporary'
+                ? '临时录制中…'
+                : isRecording
+                  ? '长时间录制中…'
+                  : '实时语音转文字'}
             </span>
             {/* 麦克风按钮在可点击容器内部：阻止冒泡，避免同时打开全屏面板 */}
             <span onClick={(event) => event.stopPropagation()}>
               <MdIconButton
-                icon={speech.listening ? 'stop_circle' : 'mic'}
-                label={speech.listening ? '停止语音识别' : '开始语音识别'}
+                icon={isRecording ? 'stop_circle' : 'mic'}
+                label={isRecording ? '停止录制' : '开始语音识别'}
                 tonal
-                onClick={() => void toggleMic()}
+                onClick={() => void startContinuousRecording()}
               />
             </span>
           </div>
@@ -251,9 +299,9 @@ export default function HomeScreen() {
           {/* 快速开始：点击语音后的进度条 + 计时，同时发布系统通知 */}
           <div onClick={(event) => event.stopPropagation()}>
             <RecordingProgress
-              active={speech.listening}
-              label="正在录音 · 实时语音转文字"
-              onStop={() => void toggleMic()}
+              active={isRecording}
+              label={recording === 'temporary' ? '临时录制中' : '正在录音 · 长时间录制'}
+              onStop={() => void startContinuousRecording()}
             />
           </div>
 
@@ -338,24 +386,54 @@ export default function HomeScreen() {
 
       {/* -------------------------------- 固定在页面左右两侧的底部控件 ------ */}
       <div className="home-footer">
-        <div {...longPressField} className="home-input" style={{ touchAction: 'manipulation' }}>
-          <MdTextField
-            label={questionMode ? '提问模式 · 回车发送' : '长按输入文本'}
-            value={questionMode ? question : manualText}
-            onValueChange={(value) => (questionMode ? setQuestion(value) : setManualText(value))}
-            onEnter={() => (questionMode ? void submitQuestion() : submitManualText())}
-            leadingIcon={<MdIcon name="voice_selection" />}
-            trailingIcon={
-              questionMode ? (
-                <div className="row" style={{ gap: 0 }}>
-                  <MdIconButton icon="send" label="发送问题" onClick={() => void submitQuestion()} />
-                  <MdIconButton icon="close" label="退出提问模式" onClick={() => setQuestionMode(false)} />
-                </div>
-              ) : (
-                <MdIconButton icon="keyboard_return" label="追加到转写文字" onClick={submitManualText} />
-              )
-            }
-          />
+        {/* 左边一个圆圈：单点 = 长时间录制，长按 = 临时录制；右边是输入框，
+            单点输入文本、长按选中文本（原生行为），两者互不干扰 */}
+        <div className="home-input-row">
+          <button
+            type="button"
+            className={[
+              'mic-circle',
+              recording === 'continuous' ? 'recording' : '',
+              recording === 'temporary' ? 'temporary' : '',
+            ]
+              .join(' ')
+              .trim()}
+            aria-label="单点进入长时间录制，长按临时录制"
+            title="单点：长时间录制 · 长按：临时录制"
+            {...micLongPress}
+          >
+            <MdIcon name={isRecording ? 'stop' : 'mic'} size={26} />
+          </button>
+
+          <div className="home-input">
+            <MdTextField
+              label={questionMode ? '提问模式 · 回车发送' : '输入文本'}
+              value={questionMode ? question : manualText}
+              onValueChange={(value) => (questionMode ? setQuestion(value) : setManualText(value))}
+              onEnter={() => (questionMode ? void submitQuestion() : submitManualText())}
+              supportingText={questionMode ? '就上方总结内容与语音转文字提问' : undefined}
+              trailingIcon={
+                questionMode ? (
+                  <div className="row" style={{ gap: 0 }}>
+                    <MdIconButton icon="send" label="发送问题" onClick={() => void submitQuestion()} />
+                    <MdIconButton icon="close" label="退出提问模式" onClick={() => setQuestionMode(false)} />
+                  </div>
+                ) : (
+                  <div className="row" style={{ gap: 0 }}>
+                    <MdIconButton
+                      icon="voice_selection"
+                      label="进入提问模式"
+                      onClick={() => {
+                        setQuestionMode(true);
+                        showSnackbar({ message: '已进入提问模式：输入问题后按回车发送', duration: 4000 });
+                      }}
+                    />
+                    <MdIconButton icon="keyboard_return" label="追加到转写文字" onClick={submitManualText} />
+                  </div>
+                )
+              }
+            />
+          </div>
         </div>
 
         {/* 拍照贴左边缘、导入图片贴右边缘，不再挤在中间 */}
@@ -386,7 +464,7 @@ export default function HomeScreen() {
         }
       >
         <div className="md-label-medium muted mb-12">
-          {speech.listening ? '正在实时转写…' : '实时转写已暂停'} · {formatDateTime(draft.updatedAt || Date.now())}
+          {isRecording ? '正在实时转写…' : '实时转写已暂停'} · {formatDateTime(draft.updatedAt || Date.now())}
         </div>
         <TranscriptView transcript={draft.transcript} interim={speech.interim} />
       </ExpandableSheet>
